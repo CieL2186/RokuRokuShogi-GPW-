@@ -96,7 +96,7 @@ jobs:
           .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: build-windows_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/*
@@ -186,7 +186,7 @@ jobs:
           .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: build-material-windows_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/*
@@ -219,7 +219,7 @@ jobs:
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-MKL /p:Platform=x64
         working-directory: main
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/*
@@ -260,7 +260,7 @@ jobs:
       - name: ndk-build
         run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: build-android_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/*
