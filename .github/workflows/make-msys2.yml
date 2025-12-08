@@ -97,6 +97,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.edition }}-${{ matrix.compiler }}-${{ matrix.target }}-${{ matrix.archcpu }}-${{ github.run_id }}
-          path: ./main/build/**/*
+          name: build-windows_${{ matrix.edition && replace(matrix.edition, '*', '_') }}_${{ matrix.compiler }}_${{ matrix.target }}_${{ matrix.archcpu }}_${{ github.run_number }}_${{ github.sha }}
+          path: main/build
+
 
