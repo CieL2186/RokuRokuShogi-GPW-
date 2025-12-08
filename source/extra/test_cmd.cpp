@@ -116,7 +116,7 @@ void random_player(Position& pos,uint64_t loop_max)
 			// ここで生成された指し手がすべて合法手であるかテストをする
 			for (auto m : mg)
 			{
- 				ASSERT_LV3(pos.pseudo_legal(m));
+				ASSERT_LV3(pos.pseudo_legal(m));
 				ASSERT_LV2(pos.legal(m));
 			}
 

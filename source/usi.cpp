@@ -56,6 +56,7 @@ namespace Test
 void user_test(Position& pos, std::istringstream& is);
 
 #if defined(ENABLE_TEST_CMD)
+	void test_cmd(Position& pos, istringstream& is);
 	void generate_moves_cmd(Position& pos);
 #endif
 
@@ -878,7 +879,7 @@ void USI::loop(int argc, char* argv[])
 		//else if (token == "s") generate_moves_cmd(pos);
 
 		// テストコマンド
-		else if (token == "test") Test::test_cmd(pos, is);
+		else if (token == "test") test_cmd(pos, is);
 #endif
 
 #if defined (ENABLE_MAKEBOOK_CMD)

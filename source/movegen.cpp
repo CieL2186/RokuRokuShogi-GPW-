@@ -29,7 +29,7 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 				if (canPromote(Us, to))
 				{
 					mlist++->move = make_move_promote(from, to , Us, Pt);
-					if (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))
+					if (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_6))
 						mlist++->move = make_move(from, to , Us, Pt);
 				}
 				else
@@ -44,8 +44,8 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 			target2.foreach([&](Square to) { mlist++->move = make_move_promote(from, to , Us , Pt); });
 
 			// 不成で移動する升
-			target &= All ? (Us == BLACK ? ForwardRanksBB[WHITE][RANK_1] : ForwardRanksBB[BLACK][RANK_9]) :
-							(Us == BLACK ? ForwardRanksBB[WHITE][RANK_2] : ForwardRanksBB[BLACK][RANK_8]);
+			target &= All ? (Us == BLACK ? ForwardRanksBB[WHITE][RANK_1] : ForwardRanksBB[BLACK][RANK_6]) :
+							(Us == BLACK ? ForwardRanksBB[WHITE][RANK_2] : ForwardRanksBB[BLACK][RANK_5]);
 
 			target.foreach([&](Square to) { mlist++->move = make_move(from,to , Us , Pt); });
 		}
@@ -59,7 +59,7 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 				to = target.pop();
 				if (canPromote(Us, to))
 					mlist++->move = make_move_promote(from, to  , Us, Pt);
-				if ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))
+				if ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_4))
 					mlist++->move = make_move(from, to , Us, Pt);
 			}
 		}
@@ -187,7 +187,7 @@ template <MOVE_GEN_TYPE GenType, Color Us, bool All> struct GeneratePieceMoves<G
 		auto target2 = pawnEffect(Us,pieces) & target;
 
 		// 先手に対する1段目(後手ならば9段目)を表す定数
-		const Rank T_RANK1 = (Us == BLACK) ? RANK_1 : RANK_9;
+		const Rank T_RANK1 = (Us == BLACK) ? RANK_1 : RANK_6;
 
 		while (target2)
 		{
@@ -299,12 +299,12 @@ template <Color Us> struct GenerateDropMoves {
 			// →　この方法はPEXTが必要なので愚直な方法に変更する。
 
 			// 歩の打てる場所
-			Bitboard target2 = rank1_n_bb(~Us, RANK_8) & target;
+			Bitboard target2 = rank1_n_bb(~Us, RANK_5) & target;
 
 			// 歩が二歩のために打てない筋を消していく(Aperyの手法)
 			Bitboard pawnBB = pos.pieces(Us, PAWN);
-			pawnBB.foreach_part([&](Square pawnSq,int part) {
-				target2.p[part] &= PAWN_DROP_MASKS[pawnSq];
+			pawnBB.foreach([&](Square pawnSq) {
+				target2.p &= PAWN_DROP_MASKS[pawnSq];
 			});
 
 			// 打ち歩詰めチェック
@@ -376,8 +376,8 @@ template <Color Us> struct GenerateDropMoves {
 				// それ以外のケース
 
 				Bitboard target1 = target & rank1_n_bb(Us, RANK_1); // 1段目
-				Bitboard target2 = target & (Us == BLACK ? RANK2_BB : RANK8_BB); // 2段目
-				Bitboard target3 = target & rank1_n_bb(~Us, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
+				Bitboard target2 = target & (Us == BLACK ? RANK2_BB : RANK5_BB); // 2段目
+				Bitboard target3 = target & rank1_n_bb(~Us, RANK_4); // 3～9段目( == 後手から見たときの1～7段目)
 
 				switch (num - nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
 				{
@@ -607,11 +607,11 @@ ExtMove* make_move_target_pro(Square from, const Bitboard& target, ExtMove* mlis
 		{
 			if (((Pt == PAWN) &&
 				((!All && !canPromote(Us, to)) ||
-				(All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
+				(All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_6))))
 				|| ((Pt == LANCE) &&
-				((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))) ||
-					(All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))))
-				|| (Pt == KNIGHT && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7)))
+				((!All && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_4))) ||
+					(All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_6))))
+				|| (Pt == KNIGHT && ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_4)))
 				|| (Pt == SILVER)
 				|| ((Pt == BISHOP || Pt == ROOK) && (!(canPromote(Us, from) || canPromote(Us, to)) || All))
 				)
@@ -629,36 +629,36 @@ ExtMove* make_move_check(const Position& pos, Piece pc, Square from, Square ksq,
 	// Xで成るとYになる駒に関する王手になる指し手生成
 	// 移動元が敵陣でないなら、移動先が敵陣でないと成れない。
 #define GEN_MOVE_NONPRO_CHECK(X,X_Effect,Y_Effect) {                   \
-    dst = X_Effect(Us, from) & Y_Effect(~Us, ksq) & target;            \
-    if (!(enemy_field(Us) & from))                                     \
-      dst &= enemy_field(Us);                                          \
-    mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
-    dst = X_Effect(Us, from) & X_Effect(~Us, ksq) & target;            \
-    mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); }
+	dst = X_Effect(Us, from) & Y_Effect(~Us, ksq) & target;            \
+	if (!(enemy_field(Us) & from))                                     \
+	  dst &= enemy_field(Us);                                          \
+	mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
+	dst = X_Effect(Us, from) & X_Effect(~Us, ksq) & target;            \
+	mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); }
 
 	// ↑のX==LANCEのとき
 	// 同じ筋にある敵玉と香との間には一つ以上の駒があるはず(ないとしたら、玉が取れるので非合法局面)
 	// この間にある駒が2個以上なら香の移動により王手にならない。1個でかつ、それが敵駒でなければ..
 #define GEN_MOVE_LANCE_CHECK(X,X_Effect,Y_Effect) {                    \
-    occ = pos.pieces();                                                \
-    dst = X_Effect(Us, from,occ) & Y_Effect(~Us, ksq) & target;        \
-    if (!(enemy_field(Us) & from))                                     \
-      dst &= enemy_field(Us);                                          \
-    mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
-    if (file_of(from) == file_of(ksq) && !more_than_one(between_bb(from, ksq) & occ)){ \
-      dst = pos.pieces(~Us) & between_bb(from, ksq) & target;            \
-      mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); \
-    }}
+	occ = pos.pieces();                                                \
+	dst = X_Effect(Us, from,occ) & Y_Effect(~Us, ksq) & target;        \
+	if (!(enemy_field(Us) & from))                                     \
+	  dst &= enemy_field(Us);                                          \
+	mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
+	if (file_of(from) == file_of(ksq) && !more_than_one(between_bb(from, ksq) & occ)){ \
+	  dst = pos.pieces(~Us) & between_bb(from, ksq) & target;            \
+	  mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); \
+	}}
 
 	// ↑のBISHOP,ROOK用
 #define GEN_MOVE_NONPRO_PRO_CHECK_BR(X,X_Effect,Y_Effect) {            \
   occ = pos.pieces();                                                  \
   dst = X_Effect(from,occ) & Y_Effect(ksq,occ) & target;               \
-    if (!(enemy_field(Us) & from))                                     \
-      dst &= enemy_field(Us);                                          \
-    mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
-    dst = X_Effect(from,occ) & X_Effect(ksq,occ) & target;             \
-    mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); }
+	if (!(enemy_field(Us) & from))                                     \
+	  dst &= enemy_field(Us);                                          \
+	mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
+	dst = X_Effect(from,occ) & X_Effect(ksq,occ) & target;             \
+	mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); }
 
 	// ↑の成れない駒用
 #define GEN_MOVE_GOLD_CHECK(X,X_Effect) {                              \

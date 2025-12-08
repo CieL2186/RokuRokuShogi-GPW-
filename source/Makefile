@@ -149,7 +149,7 @@ endif
 # リンク時最適化。
 # CPPFLAGSとLDFLAGSの両方で-fltoを指定する必要がある。
 # cf. https://gcc.gnu.org/onlinedocs/gcc-6.3.0/gcc/Optimize-Options.html#Optimize-Options
-LTOFLAGS = 
+LTOFLAGS = -flto
 
 # wstringを使うためにこのシンボル定義が必要。
 CPPFLAGS  += -DUNICODE

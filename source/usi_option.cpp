@@ -127,7 +127,7 @@ namespace USI {
 
 #if defined (USE_ENTERING_KING_WIN)
 		// 入玉ルール
-		o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_27_POINT]);
+		o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_NONE]);
 #endif
 
 #if defined(USE_GENERATE_ALL_LEGAL_MOVES)

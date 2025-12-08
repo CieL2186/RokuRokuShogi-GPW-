@@ -501,6 +501,9 @@
     <ClCompile Include="engine\tanuki-mate-engine\tanuki-mate-search.cpp">
       <Filter>リソース ファイル\engine\tanuki-mate-engine</Filter>
     </ClCompile>
+    <ClCompile Include="extra\test_cmd.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\docs\USI拡張コマンド.txt">

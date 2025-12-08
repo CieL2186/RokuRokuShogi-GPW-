@@ -20,44 +20,26 @@ namespace Bitboards { void init(); }
 
 struct alignas(16) Bitboard
 {
-#if defined (USE_SSE2)
-	union
-	{
-		// 64bitずつとして扱うとき用
-		u64 p[2];
+	// 64bitずつとして扱うとき用
+	u64 p;
 
-		// SSEで取り扱い時用
-		// bit0がSQ_11,bit1がSQ_12,…,bit81がSQ_99を表現する。
-		// このbit位置がSquare型と対応する。
-		// ただしbit63は未使用。これは、ここを余らせることで飛車の利きをpext1回で求めるためのhack。
-		// Aperyを始めとするmagic bitboard派によって考案された。
-		__m128i m;
-	};
-#else // no SSE
-	u64 p[2];
-#endif
+	Bitboard& operator = (const Bitboard& rhs) { this->p = rhs.p; return *this; }
 
-#if defined (USE_SSE2)
-	// SSE2が使えるときは代入等においてはSSE2を使ったコピーがなされて欲しい。
-
-	Bitboard& operator = (const Bitboard& rhs) { _mm_store_si128(&this->m, rhs.m); return *this; }
-
-	Bitboard(const Bitboard& bb) { _mm_store_si128(&this->m, bb.m); }
-#endif
+	Bitboard(const Bitboard& bb) { this->p = bb.p; }
 
 	// --- ctor
 
 	// 初期化しない。このとき中身は不定。
 	Bitboard() {}
 
-	// p[0],p[1]の値を直接指定しての初期化。(Bitboard定数の初期化のときのみ用いる)
-	Bitboard(u64 p0, u64 p1);
+	// pの値を直接指定しての初期化。(Bitboard定数の初期化のときのみ用いる)
+	Bitboard(u64 p0);
 	
 	// sqの升が1のBitboardとして初期化する。
 	Bitboard(Square sq);
   
 	// 値を直接代入する。
-	void set(u64 p0, u64 p1);
+	void set(u64 p0);
 
 	// --- property
 
@@ -71,25 +53,6 @@ struct alignas(16) Bitboard
 	bool test(Bitboard rhs) const;
 	bool test(Square sq) const { return test(Bitboard(sq)); }
 
-	// p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
-	template <int n> u64 extract64() const;
-
-	// p[n]に値を設定する。SSE4の命令が使えるときはそれを使う。
-	template <int n> Bitboard& insert64(u64 u);
-
-	// p[0]とp[1]をbitwise orしたものを返す。toU()相当。
-	u64 merge() const { return extract64<0>() | extract64<1>(); }
-
-	// p[0]とp[1]とで bitwise and したときに被覆しているbitがあるか。
-	// merge()したあとにpext()を使うときなどに被覆していないことを前提とする場合にそのassertを書くときに使う。
-	bool cross_over() const { return extract64<0>() & extract64<1>(); }
-
-	// 指定した升(Square)が Bitboard のどちらの u64 変数の要素に属するか。
-	// 本ソースコードのように縦型Bitboardにおいては、香の利きを求めるのにBitboardの
-	// 片側のp[x]を調べるだけで済むので、ある升がどちらに属するかがわかれば香の利きは
-	// そちらを調べるだけで良いというAperyのアイデア。
-	constexpr static int part(Square sq) { return static_cast<int>(SQ_79 < sq); }
-
 	// --- operator
 
 	// 下位bitから1bit拾ってそのbit位置を返す。
@@ -100,45 +63,25 @@ struct alignas(16) Bitboard
 	FORCE_INLINE Square pop();
 
 	// このBitboardの値を変えないpop()
-	FORCE_INLINE Square pop_c() const { u64 q0 = extract64<0>();  return (q0 != 0) ? Square(LSB64(q0)) : Square(LSB64(extract64<1>()) + 63); }
-
-	// pop()をp[0],p[1]に分けて片側ずつする用
-	FORCE_INLINE Square pop_from_p0() { u64 q0 = extract64<0>(); ASSERT_LV3(q0 != 0);  Square sq = Square(pop_lsb(q0)); insert64<0>(q0); return sq; }
-	FORCE_INLINE Square pop_from_p1() { u64 q1 = extract64<1>(); ASSERT_LV3(q1 != 0);  Square sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); return sq; }
+	FORCE_INLINE Square pop_c() const { return Square(LSB64(p)); }
 
 	// 1のbitを数えて返す。
-	int pop_count() const { return (int)(POPCNT64(extract64<0>()) + POPCNT64(extract64<1>())); }
+	int pop_count() const { return (int)(POPCNT64(p)); }
 
 	// 代入型演算子
 
-#if defined (USE_SSE2)
-	Bitboard& operator |= (const Bitboard& b1) { this->m = _mm_or_si128( m, b1.m); return *this; }
-	Bitboard& operator &= (const Bitboard& b1) { this->m = _mm_and_si128(m, b1.m); return *this; }
-	Bitboard& operator ^= (const Bitboard& b1) { this->m = _mm_xor_si128(m, b1.m); return *this; }
-	Bitboard& operator += (const Bitboard& b1) { this->m = _mm_add_epi64(m, b1.m); return *this; }
-	Bitboard& operator -= (const Bitboard& b1) { this->m = _mm_sub_epi64(m, b1.m); return *this; }
+	Bitboard& operator |= (const Bitboard& b1) { this->p |= b1.p; return *this; }
+	Bitboard& operator &= (const Bitboard& b1) { this->p &= b1.p; return *this; }
+	Bitboard& operator ^= (const Bitboard& b1) { this->p ^= b1.p; return *this; }
+	Bitboard& operator += (const Bitboard& b1) { this->p += b1.p; return *this; }
+	Bitboard& operator -= (const Bitboard& b1) { this->p -= b1.p; return *this; }
 
-	// 左シフト(縦型Bitboardでは左1回シフトで1段下の升に移動する)
-	// ※　シフト演算子は歩の利きを求めるためだけに使う。
-	Bitboard& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm_slli_epi64(m, shift); return *this; }
-
-	// 右シフト(縦型Bitboardでは右1回シフトで1段上の升に移動する)
-	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ m = _mm_srli_epi64(m, shift); return *this; }
-
-#else
-	Bitboard& operator |= (const Bitboard& b1) { this->p[0] |= b1.p[0]; this->p[1] |= b1.p[1]; return *this; }
-	Bitboard& operator &= (const Bitboard& b1) { this->p[0] &= b1.p[0]; this->p[1] &= b1.p[1]; return *this; }
-	Bitboard& operator ^= (const Bitboard& b1) { this->p[0] ^= b1.p[0]; this->p[1] ^= b1.p[1]; return *this; }
-	Bitboard& operator += (const Bitboard& b1) { this->p[0] += b1.p[0]; this->p[1] += b1.p[1]; return *this; }
-	Bitboard& operator -= (const Bitboard& b1) { this->p[0] -= b1.p[0]; this->p[1] -= b1.p[1]; return *this; }
-
-	Bitboard& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] <<= shift; this->p[1] <<= shift; return *this; }
-	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p[0] >>= shift; this->p[1] >>= shift; return *this; }
-#endif
+	Bitboard& operator <<= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p = p << shift; return *this; }
+	Bitboard& operator >>= (int shift) { /*ASSERT_LV3(shift == 1);*/ this->p = p >> shift; return *this; }
 
 	// 比較演算子
 
-	bool operator == (const Bitboard& rhs) const;
+	bool operator == (const Bitboard& rhs) const { return this->p == rhs.p; }
 	bool operator != (const Bitboard& rhs) const { return !(*this == rhs); }
 
 	// 2項演算子
@@ -159,27 +102,9 @@ struct alignas(16) Bitboard
 	// 使用例) target.foreach([&](Square to) { mlist++->move = make_move(from,to) + OurPt(Us,Pt); })
 	template <typename T> FORCE_INLINE void foreach(T t) const
 	{
-		u64 p0 = this->extract64<0>();
-		while (p0) t( (Square)pop_lsb(p0));
-
-		u64 p1 = this->extract64<1>();
-		while (p1) t( (Square)(pop_lsb(p1) + 63));
+		u64 p0 = p;
+		while (p0) t((Square)pop_lsb(p0));
 	}
-
-	// Bitboard bbに対して、1であるbitのSquareがsqに入ってきて、このときにTを呼び出す。
-	// bb.p[0]のbitに対してはT(sq,0)と呼び出す。bb.p[1]のbitに対してはT(sq,1)と呼び出す。
-	// 使用例) bb.foreach_part([&](Square sq, int part){ ... } );
-	// bbの内容は破壊しない。
-	// コードは展開されるのでわりと大きくなるから注意。
-	template <typename T> FORCE_INLINE void foreach_part(T t) const
-	{
-		u64 p0 = this->extract64<0>();
-		while (p0) { t( (Square)(pop_lsb(p0)     ),0); }
-
-		u64 p1 = this->extract64<1>();
-		while (p1) { t( (Square)(pop_lsb(p1) + 63),1); }
-	}
-
 };
 
 // 抑制していた警告を元に戻す。
@@ -189,88 +114,31 @@ struct alignas(16) Bitboard
 
 // --- Bitboardの実装
 
-inline Bitboard::Bitboard(u64 p0, u64 p1) :
-#if defined(USE_SSE2)
-	// この命令、引数の順に注意。
-	m( _mm_set_epi64x(p1,p0))
-#else
-	p { p0 , p1 }
-#endif
+inline Bitboard::Bitboard(u64 p0) :
+	p { p0 }
 {}
 
 // 値を直接代入する。
-inline void Bitboard::set(u64 p0, u64 p1)
+inline void Bitboard::set(u64 p0)
 {
-#if defined(USE_SSE2)
-	m = _mm_set_epi64x(p1,p0);
-#else
-	p[0] = p0; p[1] = p1;
-#endif
+	p = p0;
 }
 
 
 
 inline Bitboard::operator bool() const
 {
-#if defined(USE_SSE41)
-	return !_mm_testz_si128(m, m);
-#else
-	return (this->merge() ? true : false);
-#endif
+	return p;
 }
 
 inline bool Bitboard::test(Bitboard rhs) const
 {
-#if defined(USE_SSE41)
-	return !_mm_testz_si128(m, rhs.m);
-#else
 	return (*this & rhs);
-#endif
 }
 
 FORCE_INLINE Square Bitboard::pop()
 {
-	u64 q0 = extract64<0>();  Square sq;
-	if (q0 != 0) { sq = Square(pop_lsb(q0)); insert64<0>(q0); }
-	else { u64 q1 = extract64<1>();  sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); }
-	return sq;
-}
-
-// p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
-template <int n>
-inline u64 Bitboard::extract64() const
-{
-	static_assert(n == 0 || n == 1, "");
-#if defined(USE_SSE41)
-	return (u64)(_mm_extract_epi64(m, n));
-#else
-	return p[n];
-#endif
-}
-
-template <int n>
-inline Bitboard& Bitboard::insert64(u64 u)
-{
-	static_assert(n == 0 || n == 1, "");
-#if defined(USE_SSE41)
-	m = _mm_insert_epi64(m, u, n);
-#else
-	p[n] = u;
-#endif
-	return *this;
-}
-
-inline bool Bitboard::operator == (const Bitboard& rhs) const
-{
-#if defined (USE_SSE41)
-	// 以下のようにすると2命令で済むらしい。
-	// testing equality between two __m128i variables
-	// cf.http://stackoverflow.com/questions/26880863/sse-testing-equality-between-two-m128i-variables
-	__m128i neq = _mm_xor_si128(this->m, rhs.m);
-	return _mm_test_all_zeros(neq, neq) ? true : false;
-#else
-	return (this->p[0] == rhs.p[0]) && (this->p[1] == rhs.p[1]);
-#endif
+	return Square(pop_lsb(p));
 }
 
 // --- Bitboard定数
@@ -313,9 +181,6 @@ extern Bitboard FILE3_BB;
 extern Bitboard FILE4_BB;
 extern Bitboard FILE5_BB;
 extern Bitboard FILE6_BB;
-extern Bitboard FILE7_BB;
-extern Bitboard FILE8_BB;
-extern Bitboard FILE9_BB;
 
 // 各段を表現するBitboard定数
 extern Bitboard RANK1_BB;
@@ -324,9 +189,6 @@ extern Bitboard RANK3_BB;
 extern Bitboard RANK4_BB;
 extern Bitboard RANK5_BB;
 extern Bitboard RANK6_BB;
-extern Bitboard RANK7_BB;
-extern Bitboard RANK8_BB;
-extern Bitboard RANK9_BB;
 
 // 各筋を表現するBitboard配列
 extern Bitboard FILE_BB[FILE_NB];
@@ -344,7 +206,7 @@ extern Bitboard RANK_BB[RANK_NB];
 extern Bitboard ForwardRanksBB[COLOR_NB][RANK_NB];
 
 // 先手から見て1段目からr段目までを表現するBB(US==WHITEなら、9段目から数える)
-inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return ForwardRanksBB[US][(US == BLACK ? r + 1 : 7 - r)]; }
+inline const Bitboard rank1_n_bb(Color US, const Rank r) { ASSERT_LV2(is_ok(r));  return ForwardRanksBB[US][(US == BLACK ? r + 1 : 4 - r)]; }
 
 // 敵陣を表現するBitboard。
 extern Bitboard EnemyField[COLOR_NB];
@@ -357,7 +219,7 @@ extern u64 PAWN_DROP_MASKS[SQ_NB];
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)
 // この配列には直接アクセスせずにbetween_bb()を使うこと。
 // 配列サイズが大きくてcache汚染がひどいのでシュリンクしてある。
-extern Bitboard BetweenBB[785];
+extern Bitboard BetweenBB[181];
 extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
 
 // 2升に挟まれている升を表すBitboardを返す。sq1とsq2が縦横斜めの関係にないときはZERO_BBが返る。
@@ -433,7 +295,7 @@ extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
 // 飛車の縦方向の利きを求めるときに、指定した升sqの属するfileのbitをshiftし、
 // index を求める為に使用する。(from Apery)
 extern u8		Slide[SQ_NB_PLUS1];
-extern u64      RookFileEffect[RANK_NB + 1][128];
+extern u64      RookFileEffect[RANK_NB + 1][16];
 
 #if defined(USE_OLD_YANEURAOU_EFFECT)
 
@@ -462,7 +324,7 @@ extern Bitboard RookRankEffect[FILE_NB + 1][128];
 // --- 角の利き
 
 // メモリ節約の為、1次元配列にして無駄が無いようにしている。
-extern Bitboard BishopAttack[20224 + 1 /* SQ_NB対応*/];
+extern Bitboard BishopAttack[416];
 extern int BishopAttackIndex[SQ_NB_PLUS1];
 extern Bitboard BishopBlockMask[SQ_NB_PLUS1];
 // メモリ節約をせず、無駄なメモリを持っている。
@@ -475,13 +337,7 @@ extern const int BishopShiftBits[SQ_NB_PLUS1];
 extern const int RookBlockBits[SQ_NB_PLUS1];
 extern const int RookShiftBits[SQ_NB_PLUS1];
 
-#if defined (USE_BMI2)
-// PEXT2命令を用いるなら、配列サイズ、少し小さくて済む
-extern Bitboard RookAttack[495616 + 1 /* SQ_NB対応*/];
-#else
-extern Bitboard RookAttack[512000 + 1 /* SQ_NB対応*/];
-#endif
-
+extern Bitboard RookAttack[4096];
 extern int RookAttackIndex[SQ_NB_PLUS1];
 extern Bitboard RookBlockMask[SQ_NB_PLUS1];
 
@@ -563,11 +419,9 @@ inline Bitboard cross45StepEffect(Square sq) { ASSERT_LV3(sq <= SQ_NB); return b
 inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 {
 	ASSERT_LV3(sq <= SQ_NB);
-	const int index = (occupied.p[Bitboard::part(sq)] >> Slide[sq]) & 0x7f;
+	const int index = (occupied.p >> Slide[sq]) & 0xf;
 	File f = file_of(sq);
-	return (f <= FILE_7) ?
-		Bitboard(RookFileEffect[rank_of(sq)][index] << int(f | RANK_1), 0) :
-		Bitboard(0, RookFileEffect[rank_of(sq)][index] << int((File)(f - FILE_8) | RANK_1));
+	return Bitboard(RookFileEffect[rank_of(sq)][index] << int(f | RANK_1));
 }
 
 // 香 : occupied bitboardを考慮しながら香の利きを求める
@@ -638,7 +492,7 @@ inline Bitboard rookEffect(Square sq, const Bitboard& occupied)
 
 // PEXTで求まるのでmagic table不要。
 inline u64 occupiedToIndex(const Bitboard& block, const Bitboard& mask) {
-	return PEXT64(block.merge(), mask.merge());
+	return PEXT64(block.p, mask.p);
 }
 
 inline Bitboard rookEffect(const Square sq, const Bitboard& occupied) {
@@ -707,7 +561,7 @@ extern Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 
 // 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
 // この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
-inline bool more_than_one(const Bitboard& bb) { ASSERT_LV2(!bb.cross_over()); return POPCNT64(bb.merge()) > 1; }
+inline bool more_than_one(const Bitboard& bb) { return POPCNT64(bb.p) > 1; }
 
 
 

@@ -15,7 +15,7 @@
 using namespace std;
 using namespace Effect8;
 
-std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+std::string SFEN_HIRATE = "rlnsgk/pppppp/6/6/PPPPPP/KGSNLR b - 1";
 
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
@@ -238,7 +238,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	// --- 盤面
 
 	// 盤面左上から。Square型のレイアウトに依らずに処理を進めたいため、Square型は使わない。
-	File f = FILE_9;
+	File f = FILE_6;
 	Rank r = RANK_1;
 
 	std::istringstream ss(sfen);
@@ -272,7 +272,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 		// '/'は次の段を意味する
 		else if (token == '/')
 		{
-			f = FILE_9;
+			f = FILE_6;
 			++r;
 		}
 		// '+'は次の駒が成駒であることを意味する
@@ -399,9 +399,9 @@ const std::string Position::sfen(int gamePly_) const
 
 	// --- 盤面
 	int emptyCnt;
-	for (Rank r = RANK_1; r <= RANK_9; ++r)
+	for (Rank r = RANK_1; r <= RANK_6; ++r)
 	{
-		for (File f = FILE_9; f >= FILE_1; --f)
+		for (File f = FILE_6; f >= FILE_1; --f)
 		{
 			// それぞれの升に対して駒がないなら
 			// その段の、そのあとの駒のない升をカウントする
@@ -418,7 +418,7 @@ const std::string Position::sfen(int gamePly_) const
 		}
 
 		// 最下段以外では次の行があるのでセパレーターである'/'を出力する。
-		if (r < RANK_9)
+		if (r < RANK_6)
 			ss << '/';
 	}
 
@@ -534,9 +534,9 @@ void Position::update_kingSquare()
 std::ostream& operator<<(std::ostream& os, const Position& pos)
 {
 	// 盤面
-	for (Rank r = RANK_1; r <= RANK_9; ++r)
+	for (Rank r = RANK_1; r <= RANK_6; ++r)
 	{
-		for (File f = FILE_9; f >= FILE_1; --f)
+		for (File f = FILE_6; f >= FILE_1; --f)
 			os << pretty(pos.board[f | r]);
 		os << endl;
 	}
@@ -819,7 +819,7 @@ bool Position::legal_drop(const Square to) const
 
   // この歩に利いている自駒(歩を打つほうの駒)がなければ詰みには程遠いのでtrue
   if (!effected_to(us, to))
-    return true;
+	return true;
 
   // ここに利いている敵の駒があり、その駒で取れるなら打ち歩詰めではない
   // ここでは玉は除外されるし、香が利いていることもないし、そういう意味では、特化した関数が必要。
@@ -830,7 +830,7 @@ bool Position::legal_drop(const Square to) const
 
   // pinされていない駒が1つでもあるなら、相手はその駒で取って何事もない。
   if (b & (~pinned | FILE_BB[file_of(to)]))
-    return true;
+	return true;
 
   // 攻撃駒はすべてpinされていたということであり、
   // 王の頭に打たれた打ち歩をpinされている駒で取れるケースは、
@@ -870,9 +870,9 @@ bool Position::legal_drop(const Square to) const
   auto occ = pieces() ^ to; // toには歩をおく前提なので、ここには駒があるものとして、これでの利きの遮断は考えないといけない。
   while (escape_bb)
   {
-    Square king_to = escape_bb.pop();
-    if (!attackers_to(us, king_to, occ))
-      return true; // 退路が見つかったので打ち歩詰めではない。
+	Square king_to = escape_bb.pop();
+	if (!attackers_to(us, king_to, occ))
+	  return true; // 退路が見つかったので打ち歩詰めではない。
   }
 
   // すべての検査を抜けてきたのでこれは打ち歩詰めの条件を満たしている。
@@ -888,7 +888,7 @@ bool Position::legal_drop(const Square to) const
   // 打った歩での遮断を考える前の段階ですでにすでに歩を打つ側の利きがない升があり、
   // そこに移動できるのであれば、これは打ち歩ではない。
   if (~a8_effet_us & a8_them_movable)
-    return true;
+	return true;
 
   // 困ったことに行けそうな升がなかったので打った歩による利きの遮断を考える。
   // いまから打つ歩による遮断される升の利きが2以上でなければそこに逃げられるはず。
@@ -1009,7 +1009,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 				// これが非合法手であることはない。
 
 				if (pt == PAWN || pt == LANCE)
-					if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_9))
+					if ((us == BLACK && rank_of(to) == RANK_1) || (us == WHITE && rank_of(to) == RANK_6))
 						return false;
 			}
 			else {
@@ -1023,7 +1023,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 					break;
 
 				case LANCE:
-					if ((us == BLACK && rank_of(to) <= RANK_2) || (us == WHITE && rank_of(to) >= RANK_8))
+					if ((us == BLACK && rank_of(to) <= RANK_2) || (us == WHITE && rank_of(to) >= RANK_5))
 						return false;
 					break;
 
@@ -2198,6 +2198,7 @@ Move Position::DeclarationWin() const
 		// 入玉ルールなし
 	case EKR_NONE: return MOVE_NONE;
 
+#if 0
 		// CSAルールに基づく宣言勝ちの条件を満たしているか
 		// 満たしているならば非0が返る。返し値は駒点の合計。
 		// cf.http://www.computer-shogi.org/protocol/tcp_ip_1on1_11.html
@@ -2292,6 +2293,7 @@ Move Position::DeclarationWin() const
 		// 王の移動の指し手により勝ちが確定する
 		return make_move(king_sq, king_try_sq, us,KING);
 	}
+#endif
 
 	default:
 		UNREACHABLE;

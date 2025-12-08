@@ -416,7 +416,7 @@ constexpr int MAX_PLY_NUM = 246;
 
 	// デバッグ絡み
 	//#define ASSERT_LV 3
-	//#define USE_DEBUG_ASSERT
+	#define USE_DEBUG_ASSERT
 
 	#define ENABLE_TEST_CMD
 	// 学習絡みのオプション
@@ -609,7 +609,7 @@ extern GlobalOptions_ GlobalOptions;
 
 // ASSERT LVに応じたassert
 #ifndef ASSERT_LV
-#define ASSERT_LV 0
+#define ASSERT_LV 5
 #endif
 
 #define ASSERT_LV_EX(L, X) { if (L <= ASSERT_LV) ASSERT(X); }

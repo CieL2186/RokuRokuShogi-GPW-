@@ -8,41 +8,33 @@ using namespace std;
 
 // ----- Bitboard const
 
-Bitboard ALL_BB = Bitboard(UINT64_C(0x7FFFFFFFFFFFFFFF), UINT64_C(0x3FFFF));
-Bitboard ZERO_BB = Bitboard(0, 0);
+Bitboard ALL_BB = Bitboard(UINT64_C(0xfffffffff));
+Bitboard ZERO_BB = Bitboard(UINT64_C(0));
 
-Bitboard FILE1_BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
-Bitboard FILE2_BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
-Bitboard FILE3_BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
-Bitboard FILE4_BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
-Bitboard FILE5_BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
-Bitboard FILE6_BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
-Bitboard FILE7_BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
-Bitboard FILE8_BB = Bitboard(0, 0x1ff << (9 * 0));
-Bitboard FILE9_BB = Bitboard(0, 0x1ff << (9 * 1));
+Bitboard FILE1_BB = Bitboard(UINT64_C(0x3f) << (6 * 0));
+Bitboard FILE2_BB = Bitboard(UINT64_C(0x3f) << (6 * 1));
+Bitboard FILE3_BB = Bitboard(UINT64_C(0x3f) << (6 * 2));
+Bitboard FILE4_BB = Bitboard(UINT64_C(0x3f) << (6 * 3));
+Bitboard FILE5_BB = Bitboard(UINT64_C(0x3f) << (6 * 4));
+Bitboard FILE6_BB = Bitboard(UINT64_C(0x3f) << (6 * 5));
 
-Bitboard RANK1_BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
-Bitboard RANK2_BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
-Bitboard RANK3_BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
-Bitboard RANK4_BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
-Bitboard RANK5_BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
-Bitboard RANK6_BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
-Bitboard RANK7_BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
-Bitboard RANK8_BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
-Bitboard RANK9_BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
+Bitboard RANK1_BB = Bitboard(UINT64_C(0x41041041) << 0);
+Bitboard RANK2_BB = Bitboard(UINT64_C(0x41041041) << 1);
+Bitboard RANK3_BB = Bitboard(UINT64_C(0x41041041) << 2);
+Bitboard RANK4_BB = Bitboard(UINT64_C(0x41041041) << 3);
+Bitboard RANK5_BB = Bitboard(UINT64_C(0x41041041) << 4);
+Bitboard RANK6_BB = Bitboard(UINT64_C(0x41041041) << 5);
 
-Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB };
-Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB };
+Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB };
+Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB };
 
 Bitboard ForwardRanksBB[COLOR_NB][RANK_NB] = {
-  { ZERO_BB, RANK1_BB, RANK1_BB | RANK2_BB, RANK1_BB | RANK2_BB | RANK3_BB, RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB,
-  ~(RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB), ~(RANK9_BB | RANK8_BB | RANK7_BB), ~(RANK9_BB | RANK8_BB), ~RANK9_BB },
-  { ~RANK1_BB, ~(RANK1_BB | RANK2_BB), ~(RANK1_BB | RANK2_BB | RANK3_BB), ~(RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB),
-  RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB, RANK9_BB | RANK8_BB | RANK7_BB, RANK9_BB | RANK8_BB, RANK9_BB, ZERO_BB }
+	{ ZERO_BB, RANK1_BB, RANK1_BB | RANK2_BB, RANK1_BB | RANK2_BB | RANK3_BB, ~(RANK5_BB | RANK6_BB), ~RANK6_BB },
+	{ ~RANK1_BB, ~(RANK1_BB | RANK2_BB), ~(RANK1_BB | RANK2_BB | RANK3_BB), RANK5_BB | RANK6_BB, RANK6_BB, ZERO_BB }
 };
 
 // 敵陣を表現するBitboard。
-Bitboard EnemyField[COLOR_NB] = { RANK1_BB | RANK2_BB | RANK3_BB , RANK7_BB | RANK8_BB | RANK9_BB };
+Bitboard EnemyField[COLOR_NB] = { RANK1_BB | RANK2_BB, RANK5_BB | RANK6_BB };
 
 
 // ----- Bitboard tables
@@ -74,19 +66,16 @@ Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING-1][COLOR_NB];
 Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 
 u8 Slide[SQ_NB_PLUS1] = {
-  1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
-  10, 10, 10, 10, 10, 10, 10, 10, 10,
-  19, 19, 19, 19, 19, 19, 19, 19, 19,
-  28, 28, 28, 28, 28, 28, 28, 28, 28,
-  37, 37, 37, 37, 37, 37, 37, 37, 37,
-  46, 46, 46, 46, 46, 46, 46, 46, 46,
-  55, 55, 55, 55, 55, 55, 55, 55, 55,
-  1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 , 1 ,
-  10, 10, 10, 10, 10, 10, 10, 10, 10,
+  1 , 1 , 1 , 1 , 1 , 1 ,
+  7 , 7 , 7 , 7 , 7 , 7 ,
+  13, 13, 13, 13, 13, 13,
+  19, 19, 19, 19, 19, 19,
+  25, 25, 25, 25, 25, 25,
+  31, 31, 31, 31, 31, 31,
   0 , // SQ_NB用
 };
 
-Bitboard BetweenBB[785];
+Bitboard BetweenBB[181];
 u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
 
 // SquareからSquareWithWallへの変換テーブル
@@ -97,7 +86,7 @@ SquareWithWall sqww_table[SQ_NB_PLUS1];
 // ----------------------------------------------------------------------------------------------
 
 // 飛車の縦の利き
-u64      RookFileEffect[RANK_NB + 1][128];
+u64      RookFileEffect[RANK_NB + 1][16];
 
 #if defined(USE_OLD_YANEURAOU_EFFECT)
 
@@ -121,29 +110,23 @@ Bitboard RookRankEffect[FILE_NB + 1][128];
 
 // 各マスのrookが利きを調べる必要があるマスの数
 const int RookBlockBits[SQ_NB_PLUS1] = {
-	14, 13, 13, 13, 13, 13, 13, 13, 14,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	13, 12, 12, 12, 12, 12, 12, 12, 13,
-	14, 13, 13, 13, 13, 13, 13, 13, 14,
+	8, 7, 7, 7, 7, 8,
+	7, 6, 6, 6, 6, 7,
+	7, 6, 6, 6, 6, 7,
+	7, 6, 6, 6, 6, 7,
+	7, 6, 6, 6, 6, 7,
+	8, 7, 7, 7, 7, 8,
 	0
 };
 
 // 各マスのbishopが利きを調べる必要があるマスの数
 const int BishopBlockBits[SQ_NB_PLUS1] = {
-	7,  6,  6,  6,  6,  6,  6,  6,  7,
-	6,  6,  6,  6,  6,  6,  6,  6,  6,
-	6,  6,  8,  8,  8,  8,  8,  6,  6,
-	6,  6,  8, 10, 10, 10,  8,  6,  6,
-	6,  6,  8, 10, 12, 10,  8,  6,  6,
-	6,  6,  8, 10, 10, 10,  8,  6,  6,
-	6,  6,  8,  8,  8,  8,  8,  6,  6,
-	6,  6,  6,  6,  6,  6,  6,  6,  6,
-	7,  6,  6,  6,  6,  6,  6,  6,  7,
+	4, 3, 3, 3, 3, 4,
+	3, 3, 3, 3, 3, 3,
+	3, 3, 5, 5, 3, 3,
+	3, 3, 5, 5, 3, 3,
+	3, 3, 3, 3, 3, 3,
+	4, 3, 3, 3, 3, 4,
 	0
 };
 
@@ -153,114 +136,53 @@ const int BishopBlockBits[SQ_NB_PLUS1] = {
 // この方法は issei_y さんに相談したところ、教えて頂いた方法。
 // PEXT Bitboardを使用する際はシフト量を減らす必要が無い。
 const int RookShiftBits[SQ_NB_PLUS1] = {
-	50, 51, 51, 51, 51, 51, 51, 51, 50,
-#if defined (USE_BMI2)
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-#else
-	51, 52, 52, 52, 52, 52, 52, 52, 50, // [17]: 51 -> 50
-#endif
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-#if defined (USE_BMI2)
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-#else
-	51, 52, 52, 52, 52, 52, 52, 52, 50, // [53]: 51 -> 50
-#endif
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	51, 52, 52, 52, 52, 52, 52, 52, 51,
-	50, 51, 51, 51, 51, 51, 51, 51, 50,
+	56, 57, 57, 57, 57, 56,
+	57, 58, 58, 58, 58, 57,
+	57, 58, 58, 58, 58, 57,
+	57, 58, 58, 58, 58, 57,
+	57, 58, 58, 58, 58, 57,
+	56, 57, 57, 57, 57, 56,
 	0
 };
 
 // Magic Bitboard で利きを求める際のシフト量
 const int BishopShiftBits[SQ_NB_PLUS1] = {
-	57, 58, 58, 58, 58, 58, 58, 58, 57,
-	58, 58, 58, 58, 58, 58, 58, 58, 58,
-	58, 58, 56, 56, 56, 56, 56, 58, 58,
-	58, 58, 56, 54, 54, 54, 56, 58, 58,
-	58, 58, 56, 54, 52, 54, 56, 58, 58,
-	58, 58, 56, 54, 54, 54, 56, 58, 58,
-	58, 58, 56, 56, 56, 56, 56, 58, 58,
-	58, 58, 58, 58, 58, 58, 58, 58, 58,
-	57, 58, 58, 58, 58, 58, 58, 58, 57,
+	60, 61, 61, 61, 61, 60,
+	61, 61, 61, 61, 61, 61,
+	61, 61, 59, 59, 61, 61,
+	61, 61, 59, 59, 61, 61,
+	61, 61, 61, 61, 61, 61,
+	60, 61, 61, 61, 61, 60,
 	0
 };
 
 #if defined (USE_BMI2)
 #else
 const u64 RookMagic[SQ_NB_PLUS1] = {
-	UINT64_C(0x140000400809300),  UINT64_C(0x1320000902000240), UINT64_C(0x8001910c008180),
-	UINT64_C(0x40020004401040),   UINT64_C(0x40010000d01120),   UINT64_C(0x80048020084050),
-	UINT64_C(0x40004000080228),   UINT64_C(0x400440000a2a0a),   UINT64_C(0x40003101010102),
-	UINT64_C(0x80c4200012108100), UINT64_C(0x4010c00204000c01), UINT64_C(0x220400103250002),
-	UINT64_C(0x2600200004001),    UINT64_C(0x40200052400020),   UINT64_C(0xc00100020020008),
-	UINT64_C(0x9080201000200004), UINT64_C(0x2200201000080004), UINT64_C(0x80804c0020200191),
-	UINT64_C(0x45383000009100),   UINT64_C(0x30002800020040),   UINT64_C(0x40104000988084),
-	UINT64_C(0x108001000800415),  UINT64_C(0x14005000400009),   UINT64_C(0xd21001001c00045),
-	UINT64_C(0xc0003000200024),   UINT64_C(0x40003000280004),   UINT64_C(0x40021000091102),
-	UINT64_C(0x2008a20408000d00), UINT64_C(0x2000100084010040), UINT64_C(0x144080008008001),
-	UINT64_C(0x50102400100026a2), UINT64_C(0x1040020008001010), UINT64_C(0x1200200028005010),
-	UINT64_C(0x4280030030020898), UINT64_C(0x480081410011004),  UINT64_C(0x34000040800110a),
-	UINT64_C(0x101000010c0021),   UINT64_C(0x9210800080082),    UINT64_C(0x6100002000400a7),
-	UINT64_C(0xa2240800900800c0), UINT64_C(0x9220082001000801), UINT64_C(0x1040008001140030),
-	UINT64_C(0x40002220040008),   UINT64_C(0x28000124008010c),  UINT64_C(0x40008404940002),
-	UINT64_C(0x40040800010200),   UINT64_C(0x90000809002100),   UINT64_C(0x2800080001000201),
-	UINT64_C(0x1400020001000201), UINT64_C(0x180081014018004),  UINT64_C(0x1100008000400201),
-	UINT64_C(0x80004000200201),   UINT64_C(0x420800010000201),  UINT64_C(0x2841c00080200209),
-	UINT64_C(0x120002401040001),  UINT64_C(0x14510000101000b),  UINT64_C(0x40080000808001),
-	UINT64_C(0x834000188048001),  UINT64_C(0x4001210000800205), UINT64_C(0x4889a8007400201),
-	UINT64_C(0x2080044080200062), UINT64_C(0x80004002861002),   UINT64_C(0xc00842049024),
-	UINT64_C(0x8040000202020011), UINT64_C(0x400404002c0100),   UINT64_C(0x2080028202000102),
-	UINT64_C(0x8100040800590224), UINT64_C(0x2040009004800010), UINT64_C(0x40045000400408),
-	UINT64_C(0x2200240020802008), UINT64_C(0x4080042002200204), UINT64_C(0x4000b0000a00a2),
-	UINT64_C(0xa600000810100),    UINT64_C(0x1410000d001180),   UINT64_C(0x2200101001080),
-	UINT64_C(0x100020014104e120), UINT64_C(0x2407200100004810), UINT64_C(0x80144000a0845050),
-	UINT64_C(0x1000200060030c18), UINT64_C(0x4004200020010102), UINT64_C(0x140600021010302)
+	UINT64_C(0x1208004001000010), UINT64_C(0x410100200002000), UINT64_C(0x340204c401800280), UINT64_C(0x208040801082804), UINT64_C(0x403400802020041), UINT64_C(0x200200c00110000),
+	UINT64_C(0x2210408010000c01), UINT64_C(0x2104081100000189), UINT64_C(0x20128803000020), UINT64_C(0x200a0102800140), UINT64_C(0x440502050110200), UINT64_C(0x210010022002020),
+	UINT64_C(0x8204002c00402), UINT64_C(0x14010200ab20080), UINT64_C(0xc8040c400000200), UINT64_C(0x5040406400020081), UINT64_C(0x4601002d00404c02), UINT64_C(0x4128202400034001),
+	UINT64_C(0x80c008000101040), UINT64_C(0x1084038202002041), UINT64_C(0x821022020012400), UINT64_C(0x200a0104210000), UINT64_C(0x42060800100001), UINT64_C(0x102013480001c),
+	UINT64_C(0x310200401400400), UINT64_C(0x210200920a100448), UINT64_C(0x3042008200002880), UINT64_C(0x1c1090400000020), UINT64_C(0x4e20411402100002), UINT64_C(0x81050800001104),
+	UINT64_C(0x10201130004800), UINT64_C(0x1c28102410006000), UINT64_C(0x440180a08000000), UINT64_C(0x10081010040940), UINT64_C(0x10020050040810), UINT64_C(0x28110018080000),
 };
 
 const u64 BishopMagic[SQ_NB_PLUS1] = {
-	UINT64_C(0x20101042c8200428), UINT64_C(0x840240380102),     UINT64_C(0x800800c018108251),
-	UINT64_C(0x82428010301000),   UINT64_C(0x481008201000040),  UINT64_C(0x8081020420880800),
-	UINT64_C(0x804222110000),     UINT64_C(0xe28301400850),     UINT64_C(0x2010221420800810),
-	UINT64_C(0x2600010028801824), UINT64_C(0x8048102102002),    UINT64_C(0x4000248100240402),
-	UINT64_C(0x49200200428a2108), UINT64_C(0x460904020844),     UINT64_C(0x2001401020830200),
-	UINT64_C(0x1009008120),       UINT64_C(0x4804064008208004), UINT64_C(0x4406000240300ca0),
-	UINT64_C(0x222001400803220),  UINT64_C(0x226068400182094),  UINT64_C(0x95208402010d0104),
-	UINT64_C(0x4000807500108102), UINT64_C(0xc000200080500500), UINT64_C(0x5211000304038020),
-	UINT64_C(0x1108100180400820), UINT64_C(0x10001280a8a21040), UINT64_C(0x100004809408a210),
-	UINT64_C(0x202300002041112),  UINT64_C(0x4040a8000460408),  UINT64_C(0x204020021040201),
-	UINT64_C(0x8120013180404),    UINT64_C(0xa28400800d020104), UINT64_C(0x200c201000604080),
-	UINT64_C(0x1082004000109408), UINT64_C(0x100021c00c410408), UINT64_C(0x880820905004c801),
-	UINT64_C(0x1054064080004120), UINT64_C(0x30c0a0224001030),  UINT64_C(0x300060100040821),
-	UINT64_C(0x51200801020c006),  UINT64_C(0x2100040042802801), UINT64_C(0x481000820401002),
-	UINT64_C(0x40408a0450000801), UINT64_C(0x810104200000a2),   UINT64_C(0x281102102108408),
-	UINT64_C(0x804020040280021),  UINT64_C(0x2420401200220040), UINT64_C(0x80010144080c402),
-	UINT64_C(0x80104400800002),   UINT64_C(0x1009048080400081), UINT64_C(0x100082000201008c),
-	UINT64_C(0x10001008080009),   UINT64_C(0x2a5006b80080004),  UINT64_C(0xc6288018200c2884),
-	UINT64_C(0x108100104200a000), UINT64_C(0x141002030814048),  UINT64_C(0x200204080010808),
-	UINT64_C(0x200004013922002),  UINT64_C(0x2200000020050815), UINT64_C(0x2011010400040800),
-	UINT64_C(0x1020040004220200), UINT64_C(0x944020104840081),  UINT64_C(0x6080a080801c044a),
-	UINT64_C(0x2088400811008020), UINT64_C(0xc40aa04208070),    UINT64_C(0x4100800440900220),
-	UINT64_C(0x48112050),         UINT64_C(0x818200d062012a10), UINT64_C(0x402008404508302),
-	UINT64_C(0x100020101002),     UINT64_C(0x20040420504912),   UINT64_C(0x2004008118814),
-	UINT64_C(0x1000810650084024), UINT64_C(0x1002a03002408804), UINT64_C(0x2104294801181420),
-	UINT64_C(0x841080240500812),  UINT64_C(0x4406009000004884), UINT64_C(0x80082004012412),
-	UINT64_C(0x80090880808183),   UINT64_C(0x300120020400410),  UINT64_C(0x21a090100822002)
+	UINT64_C(0x1043420840081400), UINT64_C(0x18c1208000201200), UINT64_C(0x1042488012206000), UINT64_C(0x22021000082200), UINT64_C(0x10720880000c0610), UINT64_C(0x50c10110c1040),
+	UINT64_C(0x25080a02000040), UINT64_C(0x205040208001804), UINT64_C(0x2002420008480a00), UINT64_C(0x51303105013208), UINT64_C(0x2009022024020000), UINT64_C(0x700241000a80020),
+	UINT64_C(0x521147140010100), UINT64_C(0x1440080440000100), UINT64_C(0x21580c0400404206), UINT64_C(0x5210020404020004), UINT64_C(0x21046a0100200008), UINT64_C(0x11b038f000000a00),
+	UINT64_C(0x1083412001011010), UINT64_C(0x122000e00400000), UINT64_C(0x2203011800051004), UINT64_C(0x884490802000220), UINT64_C(0xc21006800400040), UINT64_C(0x82020e800000a00),
+	UINT64_C(0x6411d0007200440), UINT64_C(0x311020028111089), UINT64_C(0x2440000001050), UINT64_C(0x1001090500005040), UINT64_C(0x2182030000900130), UINT64_C(0x284650040001004),
+	UINT64_C(0x90264000240000), UINT64_C(0x300241a000042702), UINT64_C(0x800031100080643), UINT64_C(0x14011012040400a4), UINT64_C(0x2401049010800e04), UINT64_C(0x181610840200800),
 };
 #endif
 
 // これらは一度値を設定したら二度と変更しない。
 // 本当は const 化したい。
-#if defined (USE_BMI2)
-Bitboard RookAttack[495616 + 1 /* SQ_NB対応*/];
-#else
-Bitboard RookAttack[512000 + 1 /* SQ_NB対応*/];
-#endif
-
+Bitboard RookAttack[4096];
 int RookAttackIndex[SQ_NB_PLUS1];
 Bitboard RookBlockMask[SQ_NB_PLUS1];
-Bitboard BishopAttack[20224 + 1 /* SQ_NB対応*/];
+Bitboard BishopAttack[416];
 int BishopAttackIndex[SQ_NB_PLUS1];
 Bitboard BishopBlockMask[SQ_NB_PLUS1];
 
@@ -269,9 +191,9 @@ namespace {
 	// square のマスにおける、障害物を調べる必要がある場所を調べて Bitboard で返す。
 	Bitboard rookBlockMaskCalc(const Square square) {
 		Bitboard result = FILE_BB[file_of(square)] ^ RANK_BB[rank_of(square)];
-		if (file_of(square) != FILE_9) result &= ~FILE9_BB;
+		if (file_of(square) != FILE_6) result &= ~FILE6_BB;
 		if (file_of(square) != FILE_1) result &= ~FILE1_BB;
-		if (rank_of(square) != RANK_9) result &= ~RANK9_BB;
+		if (rank_of(square) != RANK_6) result &= ~RANK6_BB;
 		if (rank_of(square) != RANK_1) result &= ~RANK1_BB;
 		return result;
 	}
@@ -288,7 +210,7 @@ namespace {
 			if (abs(rank - r) == abs(file - f))
 				result |= sq;
 		}
-		result &= ~(RANK9_BB | RANK1_BB | FILE9_BB | FILE1_BB);
+		result &= ~(RANK6_BB | RANK1_BB | FILE6_BB | FILE1_BB);
 		result &= ~Bitboard(square);
 
 		return result;
@@ -363,11 +285,6 @@ namespace {
 			}
 			index += 1 << (64 - shift[sq]);
 		}
-
-		// 駒(飛車・角)がSQ_NBの時には利きは発生してはならない。
-		blockMask[SQ_NB] = ZERO_BB; // 駒はない扱い (マスク後、ZERO_BBになる)
-		attackIndex[SQ_NB] = index; // そうするとindexの先頭を指すはず
-		attacks[index] = ZERO_BB;   // そこにはZERO_BBが書き込まれていると。
 	}
 
 	// Apery型の遠方駒の利きの処理で用いるテーブルの初期化
@@ -390,11 +307,11 @@ namespace {
 // Bitboardを表示する(USI形式ではない) デバッグ用
 std::ostream& operator<<(std::ostream& os, const Bitboard& board)
 {
-  for (Rank rank = RANK_1; rank <= RANK_9; ++rank)
+  for (Rank rank = RANK_1; rank <= RANK_6; ++rank)
   {
-    for (File file = FILE_9; file >= FILE_1; --file)
-      os << ((board & (file | rank)) ? " *" : " .");
-    os << endl;
+	for (File file = FILE_6; file >= FILE_1; --file)
+	  os << ((board & (file | rank)) ? " *" : " .");
+	os << endl;
   }
   // 連続して表示させるときのことを考慮して改行を最後に入れておく。
   os << endl;
@@ -418,7 +335,7 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
   case W_SILVER: return silverEffect(WHITE, sq);
   case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: return goldEffect(WHITE, sq);
 
-    //　先後同じ移動特性の駒
+	//　先後同じ移動特性の駒
   case B_BISHOP: case W_BISHOP: return bishopEffect(sq, occ);
   case B_ROOK:   case W_ROOK:   return rookEffect(sq, occ);
   case B_HORSE:  case W_HORSE:  return horseEffect(sq, occ);
@@ -463,8 +380,7 @@ void Bitboards::init()
 	{
 		Rank r = rank_of(sq);
 		File f = file_of(sq);
-		SquareBB[sq].p[0] = (f <= FILE_7) ? ((uint64_t)1 << (f * 9 + r)) : 0;
-		SquareBB[sq].p[1] = (f >= FILE_8) ? ((uint64_t)1 << ((f - FILE_8) * 9 + r)) : 0;
+		SquareBB[sq].p = (u64)1 << (f * 6 + r);
 	}
 
 
@@ -515,8 +431,8 @@ void Bitboards::init()
 		Bitboard result = ZERO_BB;
 
 		// 外周は角の利きには関係ないのでそこは除外する。
-		for (Rank r = RANK_2; r <= RANK_8; ++r)
-			for (File f = FILE_2; f <= FILE_8; ++f)
+		for (Rank r = RANK_2; r <= RANK_5; ++r)
+			for (File f = FILE_2; f <= FILE_5; ++f)
 			{
 				auto dr = rank_of(sq) - r;
 				auto df = file_of(sq) - f;
@@ -535,12 +451,12 @@ void Bitboards::init()
 	// 5. 飛車の縦方向の利きテーブルの初期化
 	// ここでは飛車の利きを使わずに初期化しないといけない。
 
-	for (Rank rank = RANK_1; rank <= RANK_9; ++rank)
+	for (Rank rank = RANK_1; rank <= RANK_6; ++rank)
 	{
 		// sq = SQ_11 , SQ_12 , ... , SQ_19
 		Square sq = FILE_1 | rank;
 
-		const int num1s = 7;
+		const int num1s = 4;
 		for (int i = 0; i < (1 << num1s); ++i)
 		{
 			// iはsqに駒をおいたときに、その筋の2段～8段目の升がemptyかどうかを表現する値なので
@@ -553,13 +469,13 @@ void Bitboards::init()
 				if (ii & (1 << r))
 					break;
 			}
-			for (int r = rank_of(sq) + 1; r <= RANK_9; ++r)
+			for (int r = rank_of(sq) + 1; r <= RANK_6; ++r)
 			{
 				bb |= file_of(sq) | (Rank)r;
 				if (ii & (1 << r))
 					break;
 			}
-			RookFileEffect[rank][i] = bb.p[0];
+			RookFileEffect[rank][i] = bb.p;
 			// RookEffectFile[RANK_NB][x] には値を代入していないがC++の規約によりゼロ初期化されている。
 		}
 	}
@@ -703,7 +619,7 @@ void Bitboards::init()
 	// 7) 二歩用のテーブル初期化
 
 	for (auto sq : SQ)
-		PAWN_DROP_MASKS[sq] = ~FILE_BB[SquareToFile[sq]].p[Bitboard::part(sq)];
+		PAWN_DROP_MASKS[sq] = ~FILE_BB[SquareToFile[sq]].p;
 
 	// 8) BetweenBB , LineBBの初期化
 	{
@@ -739,7 +655,7 @@ void Bitboards::init()
 				}
 			}
 
-		ASSERT_LV1(between_index == 785);
+		ASSERT_LV1(between_index == 181);
 
 		// 対称性を考慮して、さらにシュリンクする。
 		for (auto s1 : SQ)
@@ -793,7 +709,7 @@ void Bitboards::init()
 			{
 				if (file_of(ksq) != FILE_1)
 					target |= lanceStepEffect(them, ksq + SQ_R);
-				if (file_of(ksq) != FILE_9)
+				if (file_of(ksq) != FILE_6)
 					target |= lanceStepEffect(them, ksq + SQ_L);
 			}
 			CheckCandidateBB[ksq][LANCE - 1][Us] = target;
