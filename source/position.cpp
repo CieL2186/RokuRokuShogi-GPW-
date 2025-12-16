@@ -15,7 +15,7 @@
 using namespace std;
 using namespace Effect8;
 
-std::string SFEN_HIRATE = "rlnsgk/pppppp/6/6/PPPPPP/KGSNLR b - 1";
+std::string SFEN_HIRATE = "1k4/pppppp/6/6/PPPPPP/3K2 b BLNGSblngs 1";
 
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
@@ -1786,6 +1786,20 @@ void Position::undo_null_move()
 
 	st = st->previous;
 	sideToMove = ~sideToMove;
+}
+
+void Position::remove_hand_piece(Color c, PieceType pt) {
+	if (Zobrist::hand[c][pt] > 0) Zobrist::hand[c][pt] = 0;
+}
+
+void Position::clear_hands() {
+	for (int col = 0; col < 2; ++col)
+		for (int pt = 0; pt < 8; ++pt)
+			Zobrist::hand[col][pt] = 0;
+}
+
+void Position::add_hand_piece(Color c, PieceType pt, int count) {
+	Zobrist::hand[c][pt] += count;
 }
 
 

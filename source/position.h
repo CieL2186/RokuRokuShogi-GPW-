@@ -26,6 +26,10 @@
 // StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
 // do_move()のときは、ブロックコピーで済むのでそこそこ高速。
 
+inline Square SQ66(int file, int rank) {
+	return Square(file * 6 + rank);
+}
+
 struct StateInfo {
 
 	// Copied when making a move
@@ -217,10 +221,22 @@ public:
 	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
 	// c側の玉の位置を返す。
-	FORCE_INLINE Square king_square(Color c) const { ASSERT_LV3(is_ok(c)); return kingSquare[c]; }
+	FORCE_INLINE Square king_square(Color c) const {
+		ASSERT_LV3(is_ok(c));
+		if (is_placement_phase())return SQ_NB;
+		else return kingSquare[c];
+	}
 
 	// 保持しているデータに矛盾がないかテストする。
 	bool pos_is_ok() const;
+
+	bool is_placement_phase() const {
+		return game_ply() <= 10;
+	}
+
+	void remove_hand_piece(Color c, PieceType pt);
+	void clear_hands();
+	void add_hand_piece(Color c, PieceType pt, int count);
 
 	// 現局面に対して
 	// この指し手によって移動させる駒を返す。(移動前の駒)

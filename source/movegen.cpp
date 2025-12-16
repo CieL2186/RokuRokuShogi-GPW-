@@ -521,42 +521,47 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 
 	static_assert(GenType != EVASIONS_ALL && GenType != NON_EVASIONS_ALL && GenType != RECAPTURES_ALL, "*_ALL is not allowed.");
 
-	// 歩以外の駒の移動先
-	const Bitboard target =
-		(GenType == NON_CAPTURES)      ? pos.empties()      : // 捕獲しない指し手 = 移動先の升は駒のない升
-		(GenType == CAPTURES)          ? pos.pieces(~Us)    : // 捕獲する指し手 = 移動先の升は敵駒のある升
-		(GenType == NON_CAPTURES_PRO_MINUS) ? pos.empties() : // 捕獲しない指し手 - 歩の成る指し手 = 移動先の升は駒のない升 - 敵陣(歩のときのみ)
-		(GenType == CAPTURES_PRO_PLUS) ? pos.pieces(~Us)    : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
-		(GenType == NON_EVASIONS)      ? ~pos.pieces(Us)    : // すべて = 移動先の升は自駒のない升
-		(GenType == RECAPTURES)        ? Bitboard(recapSq)  : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
-		ALL_BB; // error
+	if (pos.is_placement_phase()) {
+		Bitboard target = pos.empties() & rank1_n_bb(~Us, RANK_1);
+		mlist = GenerateDropMoves<Us>()(pos, mlist, target);
+	}
+	else {
+		// 歩以外の駒の移動先
+		const Bitboard target =
+			(GenType == NON_CAPTURES) ? pos.empties() : // 捕獲しない指し手 = 移動先の升は駒のない升
+			(GenType == CAPTURES) ? pos.pieces(~Us) : // 捕獲する指し手 = 移動先の升は敵駒のある升
+			(GenType == NON_CAPTURES_PRO_MINUS) ? pos.empties() : // 捕獲しない指し手 - 歩の成る指し手 = 移動先の升は駒のない升 - 敵陣(歩のときのみ)
+			(GenType == CAPTURES_PRO_PLUS) ? pos.pieces(~Us) : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
+			(GenType == NON_EVASIONS) ? ~pos.pieces(Us) : // すべて = 移動先の升は自駒のない升
+			(GenType == RECAPTURES) ? Bitboard(recapSq) : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
+			ALL_BB; // error
 
-	// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
-	const Bitboard targetPawn =
-		(GenType == NON_CAPTURES_PRO_MINUS) ? (pos.empties() & ~enemy_field(Us)) : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
-		(GenType == CAPTURES_PRO_PLUS)      ? (pos.pieces(~Us) | (~pos.pieces(Us) & enemy_field(Us))) : // 歩の場合は敵陣での成りもこれに含める
-		target;
+		// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
+		const Bitboard targetPawn =
+			(GenType == NON_CAPTURES_PRO_MINUS) ? (pos.empties() & ~enemy_field(Us)) : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
+			(GenType == CAPTURES_PRO_PLUS) ? (pos.pieces(~Us) | (~pos.pieces(Us) & enemy_field(Us))) : // 歩の場合は敵陣での成りもこれに含める
+			target;
 
-	// 各駒による移動の指し手の生成
-	// 歩の指し手は歩のBitboardをbit shiftすることで移動先が一発で求まるので特別扱い
-	mlist = GeneratePieceMoves<GenType, PAWN    , Us, All>()(pos, mlist, targetPawn);
+		// 各駒による移動の指し手の生成
+		// 歩の指し手は歩のBitboardをbit shiftすることで移動先が一発で求まるので特別扱い
+		mlist = GeneratePieceMoves<GenType, PAWN, Us, All>()(pos, mlist, targetPawn);
 
-	// 香・桂・銀は成れるなら成らない手の他に成る手も生成する駒。これらによる移動の指し手
-	mlist = GeneratePieceMoves<GenType, LANCE   , Us, All>()(pos, mlist, target);
-	mlist = GeneratePieceMoves<GenType, KNIGHT  , Us, All>()(pos, mlist, target);
-	mlist = GeneratePieceMoves<GenType, SILVER  , Us, All>()(pos, mlist, target);
+		// 香・桂・銀は成れるなら成らない手の他に成る手も生成する駒。これらによる移動の指し手
+		mlist = GeneratePieceMoves<GenType, LANCE, Us, All>()(pos, mlist, target);
+		mlist = GeneratePieceMoves<GenType, KNIGHT, Us, All>()(pos, mlist, target);
+		mlist = GeneratePieceMoves<GenType, SILVER, Us, All>()(pos, mlist, target);
 
-	// 角・飛による移動による指し手生成。これらの駒は成れるなら絶対に成る
-	mlist = GeneratePieceMoves<GenType, GPM_BR  , Us, All>()(pos, mlist, target);
+		// 角・飛による移動による指し手生成。これらの駒は成れるなら絶対に成る
+		mlist = GeneratePieceMoves<GenType, GPM_BR, Us, All>()(pos, mlist, target);
 
-	// 金相当の駒・馬・龍・王による移動による指し手。(成れない駒による移動による指し手)
-	mlist = GeneratePieceMoves<GenType, GPM_GHDK, Us, All>()(pos, mlist, target);
+		// 金相当の駒・馬・龍・王による移動による指し手。(成れない駒による移動による指し手)
+		mlist = GeneratePieceMoves<GenType, GPM_GHDK, Us, All>()(pos, mlist, target);
 
-	// --- 駒打ち
-	// →　オーダリング性能改善のためにDropをもう少し細分化できるといいのだが、なかなか簡単ではなさげ。
-	if (GenType == NON_CAPTURES || GenType == NON_CAPTURES_PRO_MINUS || GenType == NON_EVASIONS)
-		mlist = GenerateDropMoves<Us>()(pos, mlist, pos.empties());
-
+		// --- 駒打ち
+		// →　オーダリング性能改善のためにDropをもう少し細分化できるといいのだが、なかなか簡単ではなさげ。
+		if (GenType == NON_CAPTURES || GenType == NON_CAPTURES_PRO_MINUS || GenType == NON_EVASIONS)
+			mlist = GenerateDropMoves<Us>()(pos, mlist, pos.empties());
+	}
 	return mlist;
 }
 
