@@ -1366,11 +1366,13 @@ namespace {
 			// 5手以内で詰まさせるときのスコアを下回ることもない。
 			// そこで、alpha , betaの値をまずこの範囲に補正したあと、
 			// alphaがbeta値を超えているならbeta cutする。
-
-			alpha = std::max(mated_in(ss->ply), alpha);
-			beta = std::min(mate_in(ss->ply + 1), beta);
-			if (alpha >= beta)
-				return alpha;
+			if (!(pos.is_placement_phase())) {
+				alpha = std::max(mated_in(ss->ply), alpha);
+				beta = std::min(mate_in(ss->ply + 1), beta);
+				//std::cout << "alpha=" << alpha << ", beta=" << beta << "\n";
+				if (alpha >= beta)
+					return alpha;
+			}
 		}
 
 		// -----------------------
@@ -1537,6 +1539,7 @@ namespace {
 				// 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
 				// (トライルールのとき王手を回避しながら入玉することはありうるので)
 				// トライルールのときここで返ってくるのは16bitのmoveだが、置換表に格納するには問題ない。
+
 				Move m = pos.DeclarationWin();
 				if (m != MOVE_NONE)
 				{
@@ -1568,9 +1571,9 @@ namespace {
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
 					move = Mate::mate_1ply(pos);
-
 					if (move != MOVE_NONE)
 					{
+						
 						// 1手詰めスコアなので確実にvalue > alphaなはず。
 						// 1手詰めは次のnodeで詰むという解釈
 						bestValue = mate_in(ss->ply + 1);
@@ -1856,54 +1859,58 @@ namespace {
 
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
-			while ((move = mp.next_move()) != MOVE_NONE
-				&& probCutCount < 2 + 2 * cutNode)
-			{
-				if (move != excludedMove && pos.legal(move))
+			if(!(pos.is_placement_phase())){
+				while ((move = mp.next_move()) != MOVE_NONE
+					&& probCutCount < 2 + 2 * cutNode)
 				{
-					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
-					ASSERT_LV3(depth > PARAM_PROBCUT_DEPTH);
-					// Stockfish 12のコード、ここ"depth >= 5"と書いてある。
-					// なぜにifの条件式に倣って"depth > 4"と書かないのか…。
+					//if (pos.is_placement_phase() && !(pos.side_to_move() == WHITE ? rank_of(to_sq(move)) == RANK_1 : rank_of(to_sq(move)) == RANK_6)) continue;
 
-					captureOrPawnPromotion = true;
-					probCutCount++;
-
-					ss->currentMove = move;
-					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
-																			  [captureOrPawnPromotion]
-																			  [to_sq(move)]
-																			  [pos.moved_piece_after(move)];
-
-					pos.do_move(move, st);
-
-					// Perform a preliminary qsearch to verify that the move holds
-					// この指し手がよさげであることを確認するための予備的なqsearch
-
-					value = -qsearch<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1);
-
-					// If the qsearch held, perform the regular search
-					// よさげであったので、普通に探索する
-
-					if (value >= probCutBeta)
-						value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - PARAM_PROBCUT_DEPTH, !cutNode);
-
-					pos.undo_move(move);
-
-					if (value >= probCutBeta)
+					if (move != excludedMove && pos.legal(move))
 					{
-						// if transposition table doesn't have equal or more deep info write probCut data into it
-						// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
+						ASSERT_LV3(pos.capture_or_pawn_promotion(move));
+						ASSERT_LV3(depth > PARAM_PROBCUT_DEPTH);
+						// Stockfish 12のコード、ここ"depth >= 5"と書いてある。
+						// なぜにifの条件式に倣って"depth > 4"と書かないのか…。
 
-						if (!(ss->ttHit
-							&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
-							&& ttValue != VALUE_NONE))
-							tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
-								BOUND_LOWER,
-								depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
-						return value;
+						captureOrPawnPromotion = true;
+						probCutCount++;
+
+						ss->currentMove = move;
+						ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
+							[captureOrPawnPromotion]
+							[to_sq(move)]
+							[pos.moved_piece_after(move)];
+
+						pos.do_move(move, st);
+
+						// Perform a preliminary qsearch to verify that the move holds
+						// この指し手がよさげであることを確認するための予備的なqsearch
+
+						value = -qsearch<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1);
+
+						// If the qsearch held, perform the regular search
+						// よさげであったので、普通に探索する
+
+						if (value >= probCutBeta)
+							value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - PARAM_PROBCUT_DEPTH, !cutNode);
+
+						pos.undo_move(move);
+
+						if (value >= probCutBeta)
+						{
+							// if transposition table doesn't have equal or more deep info write probCut data into it
+							// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
+
+							if (!(ss->ttHit
+								&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
+								&& ttValue != VALUE_NONE))
+								tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
+									BOUND_LOWER,
+									depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
+							return value;
+						}
+					}
 				}
-			}
 			}
 
 			// ss->ttPvはprobCutの探索で書き換えてしまったかも知れないので復元する。
@@ -1978,6 +1985,7 @@ namespace {
 
 		while ((move = mp.next_move(moveCountPruning)) != MOVE_NONE)
 		{
+			if (pos.is_placement_phase() && !(pos.side_to_move() == WHITE ? rank_of(to_sq(move)) == RANK_1 : rank_of(to_sq(move)) == RANK_6)) continue;
 			ASSERT_LV3(is_ok(move));
 
 			if (move == excludedMove)
@@ -2609,8 +2617,9 @@ namespace {
 
 		// (将棋では)合法手がない == 詰まされている なので、rootの局面からの手数で詰まされたという評価値を返す。
 		// ただし、singular extension中のときは、ttMoveの指し手が除外されているので単にalphaを返すべき。
-		if (!moveCount)
+		if (!moveCount) {
 			bestValue = excludedMove ? alpha : mated_in(ss->ply);
+		}
 
 		// bestMoveがあるならこの指し手に基いてhistoryのupdateを行なう。
 		else if (bestMove)
@@ -2931,7 +2940,14 @@ namespace {
 
 		while ((move = mp.next_move()) != MOVE_NONE)
 		{
+			
+			//std::cout << "move:" << move << "\n";
+			if (pos.is_placement_phase() && (!(pos.side_to_move() == WHITE ? rank_of(to_sq(move)) == RANK_1 : rank_of(to_sq(move)) == RANK_6) || !(is_drop(move)))) continue;
+			if (!(pos.pseudo_legal(move)))continue;
 			// MovePickerで生成された指し手はpseudo_legalであるはず。
+			int flag = !(is_drop(move));
+			//if (pos.game_ply() >= 11) std::cout << pos.game_ply() << ": move:" << move << "\n";
+			//if(!(pos.pseudo_legal(move))) std::cout << "move:" << move << ", rank:" << rank_of(to_sq(move))<< ", depth:" <<  << "\n";
 			ASSERT_LV3(pos.pseudo_legal(move));
 
 			// -----------------------

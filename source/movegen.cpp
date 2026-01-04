@@ -329,7 +329,7 @@ template <Color Us> struct GenerateDropMoves {
 		// 歩以外の手駒を持っているか
 		if (hand_except_pawn_exists(hand))
 		{
-			Move drops[6];
+			Move drops[7];
 
 			// 打つ先の升を埋めればいいだけの指し手を事前に生成しておく。
 			// 基本的な戦略としては、(先手から見て)
@@ -351,6 +351,7 @@ template <Color Us> struct GenerateDropMoves {
 			if (hand_exists(hand, GOLD)  ) drops[num++] = make_move_drop(GOLD  , SQ_ZERO , Us);
 			if (hand_exists(hand, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO , Us);
 			if (hand_exists(hand, ROOK)  ) drops[num++] = make_move_drop(ROOK  , SQ_ZERO , Us);
+			if (hand_exists(hand, KING)  ) drops[num++] = make_move_drop(KING  , SQ_ZERO , Us);
 
 
 			// 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
@@ -368,6 +369,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i) { mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 			}
@@ -386,6 +388,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 2: target1.foreach([&](Square sq) { Unroller<2>()([&](int i){ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
 				case 3: target1.foreach([&](Square sq) { Unroller<3>()([&](int i){ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
 				case 4: target1.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
+				case 5: target1.foreach([&](Square sq) { Unroller<5>()([&](int i) { mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 
@@ -397,6 +400,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
 				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
 				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i){ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
+				case 6: target2.foreach([&](Square sq) { Unroller<6>()([&](int i) { mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 
@@ -408,6 +412,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 4: target3.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 5: target3.foreach([&](Square sq) { Unroller<5>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 6: target3.foreach([&](Square sq) { Unroller<6>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
+				case 7: target3.foreach([&](Square sq) { Unroller<7>()([&](int i) { mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 			}

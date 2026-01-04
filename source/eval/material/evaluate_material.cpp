@@ -30,7 +30,21 @@ namespace Eval
 	void init() {}
 	Value compute_eval(const Position& pos) {
 		auto score = pos.state()->materialValue;
-		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
+
+		for (auto sq : SQ)
+		{
+			auto pc = pos.piece_on(sq);
+			// この升に駒がなければ次の升へ
+			if (pc == NO_PIECE)
+				continue;
+
+			// 駒の価値。
+			// 後手の駒ならマイナスになるが、
+			// いま計算しようとしているのは先手から見た評価値なので
+			// これで辻褄が合う。
+			auto piece_value = PieceValue[pc];
+			score -= piece_value * 104 / 1024;
+		}
 
 		return pos.side_to_move() == BLACK ? score : -score;
 	}

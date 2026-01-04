@@ -234,6 +234,7 @@ public:
 		return game_ply() <= 10;
 	}
 
+
 	void remove_hand_piece(Color c, PieceType pt);
 	void clear_hands();
 	void add_hand_piece(Color c, PieceType pt, int count);

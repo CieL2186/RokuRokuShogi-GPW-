@@ -15,7 +15,7 @@
 using namespace std;
 using namespace Effect8;
 
-std::string SFEN_HIRATE = "1k4/pppppp/6/6/PPPPPP/3K2 b BLNGSblngs 1";
+std::string SFEN_HIRATE = "k5/pppppp/6/6/PPPPPP/3K2 b LNGBSlngrs 1";
 
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
@@ -429,14 +429,14 @@ const std::string Position::sfen(int gamePly_) const
 	int n;
 	bool found = false;
 	for (Color c = BLACK; c <= WHITE; ++c)
-		for (int pn = 0 ; pn < 7; ++ pn)
+		for (int pn = 0 ; pn < 8; ++ pn)
 		{
 			// 手駒の出力順はUSIプロトコルでは規定されていないが、
 			// USI原案によると、飛、角、金、銀、桂、香、歩の順である。
 			// sfen文字列を一意にしておかないと定跡データーをsfen文字列で書き出したときに
 			// 他のソフトで文字列が一致しなくて困るので、この順に倣うことにする。
 
-			const PieceType USI_Hand[7] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN };
+			const PieceType USI_Hand[8] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN,KING };
 			auto p = USI_Hand[pn];
 
 			// その種類の手駒の枚数
@@ -730,6 +730,7 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 
 bool Position::gives_check(Move m) const
 {
+	if (is_placement_phase()) return false;
 	// 指し手がおかしくないか
 	ASSERT_LV3(is_ok(m));
 
@@ -755,6 +756,7 @@ bool Position::gives_check(Move m) const
 
 Bitboard Position::pinned_pieces(Color c, Square avoid) const {
 	Bitboard b, pinners, result = ZERO_BB;
+	if (is_placement_phase())return result;
 	Square ksq = king_square(c);
 
 	// avoidを除外して考える。
@@ -923,41 +925,45 @@ bool Position::pseudo_legal_s(const Move m) const {
 		// 打つ先の升が埋まっていたり、その手駒を持っていなかったりしたら駄目。
 		if (piece_on(to) != NO_PIECE || hand_count(hand[us], pr) == 0)
 			return false;
-
-		if (in_check())
-		{
-			// 王手されている局面なので合駒でなければならない
-			Bitboard target = checkers();
-			Square checksq = target.pop();
-
-			// 王手している駒を1個取り除いて、もうひとつあるということは王手している駒が
-			// 2つあったということであり、両王手なので合い利かず。
-			if (target)
-				return false;
-
-			// 王と王手している駒との間の升に駒を打っていない場合、それは王手を回避していることに
-			// ならないので、これは非合法手。
-			if (!(between_bb(checksq, king_square(us)) & to))
+		if (is_placement_phase()) {
+			if (us == WHITE ? rank_of(to) != RANK_1 : rank_of(to) != RANK_6)
 				return false;
 		}
+		else {
+			if (in_check())
+			{
+				// 王手されている局面なので合駒でなければならない
+				Bitboard target = checkers();
+				Square checksq = target.pop();
 
-		// 歩のとき、二歩および打ち歩詰めであるなら非合法手
-		if (pr == PAWN && !legal_pawn_drop(us, to))
-			return false;
+				// 王手している駒を1個取り除いて、もうひとつあるということは王手している駒が
+				// 2つあったということであり、両王手なので合い利かず。
+				if (target)
+					return false;
 
-		// --- 移動できない升への歩・香・桂打ちについて
+				// 王と王手している駒との間の升に駒を打っていない場合、それは王手を回避していることに
+				// ならないので、これは非合法手。
+				if (!(between_bb(checksq, king_square(us)) & to))
+					return false;
+			}
 
-		// 打てない段に打つ歩・香・桂の指し手はそもそも生成されていない。
-		// 置換表のhash衝突で、後手の指し手が先手の指し手にならないことは保証されている。
-		// (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
+			// 歩のとき、二歩および打ち歩詰めであるなら非合法手
+			if (pr == PAWN && !legal_pawn_drop(us, to))
+				return false;
 
-		// しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性があるため
-		// (しかも、その可能性はそこそこ高い)、ここで合法性をチェックする必要がある。
-		// →　指し手生成の段階で駒種を保存するようにしたのでこのテスト不要。
+			// --- 移動できない升への歩・香・桂打ちについて
 
+			// 打てない段に打つ歩・香・桂の指し手はそもそも生成されていない。
+			// 置換表のhash衝突で、後手の指し手が先手の指し手にならないことは保証されている。
+			// (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
+
+			// しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性があるため
+			// (しかも、その可能性はそこそこ高い)、ここで合法性をチェックする必要がある。
+			// →　指し手生成の段階で駒種を保存するようにしたのでこのテスト不要。
+		}
 	}
 	else {
-
+		if (is_placement_phase()) return false;
 		const Square from = from_sq(m);
 		const Piece pc = piece_on(from);
 
@@ -970,8 +976,11 @@ bool Position::pseudo_legal_s(const Move m) const {
 			return false;
 
 		// toの地点に自駒があるといけない
-		if (pieces(us) & to)
+		if (pieces(us) & to) {
+			//std::cout <<"from:" << from << ", to:" << to << ", gameply:"  << game_ply() << ", type:" << type_of(pc) << "\n";
+			//printf("to_error_us\n");
 			return false;
+		}
 
 		PieceType pt = type_of(pc);
 		if (is_promote(m))

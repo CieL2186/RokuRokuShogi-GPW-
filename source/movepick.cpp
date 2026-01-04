@@ -288,7 +288,6 @@ Move MovePicker::select(Pred filter) {
 // 指し手が尽きればMOVE_NONEが返る。
 // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
 Move MovePicker::next_move(bool skipQuiets) {
-
 top:
 	switch (stage) {
 
@@ -313,7 +312,6 @@ top:
 
 		++stage;
 		goto top;
-
 	// 置換表の指し手を返したあとのフェーズ
 	// (killer moveの前のフェーズなのでkiller除去は不要)
 	// SSEの値が悪いものはbad captureのほうに回す。
@@ -454,7 +452,6 @@ top:
 		// depthが0のときは特別に、王手になる指し手も試す。ただし、他にcaptureの指し手がないなら、王手も試さない。
 		if (depth != DEPTH_QS_CHECKS)
 			return MOVE_NONE;
-
 		++stage;
 		[[fallthrough]];
 
