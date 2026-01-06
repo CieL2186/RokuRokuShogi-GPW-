@@ -99,7 +99,7 @@ enum StatsType { NoCaptures, Captures };
 // やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
 // そのため、(SQ_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<int16_t, 10692, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
+typedef Stats<int16_t, 10692, int(SQ_NB + 8) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
 
 
 // より高い探索深さにおいて、LowPlyHistoryは、root付近の成功したquietな指し手と
@@ -110,7 +110,7 @@ typedef Stats<int16_t, 10692, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyH
 // [ply][from_to] これは逆順にしたほうが少し高速化が図れるのだが、Stockfishでこの順に依存するコードがあったので、
 // とりあえずStockfishと同じ順にしてある。
 constexpr int MAX_LPH = 4; // これ以下のdepthのときにこのテーブルを用いる。
-typedef Stats<int16_t, 10692, MAX_LPH,int(SQ_NB + 7)* int(SQ_NB)> LowPlyHistory;
+typedef Stats<int16_t, 10692, MAX_LPH,int(SQ_NB + 8)* int(SQ_NB)> LowPlyHistory;
 
 /// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic

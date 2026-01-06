@@ -4,6 +4,7 @@
 #include "thread.h"
 #include "mate/mate.h"
 
+#include <bitset>
 #include <iostream>
 #include <sstream>
 #include <cstring> // std::memset()
@@ -15,7 +16,7 @@
 using namespace std;
 using namespace Effect8;
 
-std::string SFEN_HIRATE = "k5/pppppp/6/6/PPPPPP/3K2 b LNGBSlngrs 1";
+std::string SFEN_HIRATE = "6/pppppp/6/6/PPPPPP/6 b KLNGBRSklngrbs 1";
 
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
@@ -256,7 +257,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
 	// それぞれの駒をどこまで使ったかのカウンター
 	PieceNumber piece_no_count[KING] = { PIECE_NUMBER_ZERO,PIECE_NUMBER_PAWN,PIECE_NUMBER_LANCE,PIECE_NUMBER_KNIGHT,
-	  PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,PIECE_NUMBER_GOLD };
+	  PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,PIECE_NUMBER_GOLD};
 
 	// 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
 	// 上のevalList.clear()で、ゼロクリアしているので、それは達成しているはず。
@@ -319,6 +320,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 	// --- 手駒
 
 	hand[BLACK] = hand[WHITE] = (Hand)0;
+	hand_king[BLACK] = hand_king[WHITE] = 0;
 	int ct = 0;
 	while ((ss >> token) && !isspace(token))
 	{
@@ -333,6 +335,8 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 		{
 			// 個数が省略されていれば1という扱いをする。
 			ct = max(ct, 1);
+			if ((Piece(idx) == B_KING)) hand_king[BLACK] = 1;
+			else if ((Piece(idx) == W_KING)) hand_king[WHITE] = 1;
 			add_hand(hand[color_of(Piece(idx))], type_of(Piece(idx)), ct);
 
 			// FV38などではこの個数分だけpieceListに突っ込まないといけない。
@@ -428,15 +432,15 @@ const std::string Position::sfen(int gamePly_) const
 	// --- 手駒(UCIプロトコルにはないがUSIプロトコルにはある)
 	int n;
 	bool found = false;
-	for (Color c = BLACK; c <= WHITE; ++c)
-		for (int pn = 0 ; pn < 8; ++ pn)
+	for (Color c = BLACK; c <= WHITE; ++c) {
+		for (int pn = 0; pn < 7; ++pn)
 		{
 			// 手駒の出力順はUSIプロトコルでは規定されていないが、
 			// USI原案によると、飛、角、金、銀、桂、香、歩の順である。
 			// sfen文字列を一意にしておかないと定跡データーをsfen文字列で書き出したときに
 			// 他のソフトで文字列が一致しなくて困るので、この順に倣うことにする。
 
-			const PieceType USI_Hand[8] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN,KING };
+			const PieceType USI_Hand[8] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN };
 			auto p = USI_Hand[pn];
 
 			// その種類の手駒の枚数
@@ -454,6 +458,11 @@ const std::string Position::sfen(int gamePly_) const
 				ss << PieceToCharBW[make_piece(c, p)];
 			}
 		}
+		if (hand_king[c] == 1) {
+			found = true;
+			ss << PieceToCharBW[make_piece(c, KING)];
+		}
+	}
 
 	// 手駒がない場合はハイフンを出力
 	ss << (found ? " " : "- ");
@@ -548,7 +557,12 @@ std::ostream& operator<<(std::ostream& os, const Position& pos)
 	// 手番
 	os << "Turn = " << pos.sideToMove << endl;
 #else
-	os << "先手 手駒 : " << pos.hand[BLACK] << " , 後手 手駒 : " << pos.hand[WHITE] << endl;
+	
+	os << "先手 手駒 : " << pos.hand[BLACK];
+	if (pos.hand_king[BLACK]) os << " 玉";
+	os << " , 後手 手駒 : " << pos.hand[WHITE];
+	if(pos.hand_king[WHITE]) os << " 玉";
+		os << endl;
 	os << "手番 = " << pos.sideToMove << endl;
 #endif
 
@@ -915,16 +929,20 @@ bool Position::pseudo_legal_s(const Move m) const {
 		const PieceType pr = move_dropped_piece(m);
 		// 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
 		// KING打ちのような値であることはないものとする。
-
 		// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-		if (moved_piece_after(m) != Piece(pr + (us == WHITE ? u32(PIECE_WHITE) : 0) ))
-			return false;
+		if (pr == KING) {
+			if (hand_king[us] == 0 || piece_on(to) != NO_PIECE)return false;
+		}
+		else {
+			if (moved_piece_after(m) != Piece(pr + (us == WHITE ? u32(PIECE_WHITE) : 0)))
+				return false;
 
-		ASSERT_LV3(PAWN <= pr && pr < KING);
+			ASSERT_LV3(PAWN <= pr && pr <= KING);
 
-		// 打つ先の升が埋まっていたり、その手駒を持っていなかったりしたら駄目。
-		if (piece_on(to) != NO_PIECE || hand_count(hand[us], pr) == 0)
-			return false;
+			// 打つ先の升が埋まっていたり、その手駒を持っていなかったりしたら駄目。
+			if (piece_on(to) != NO_PIECE || hand_count(hand[us], pr) == 0)
+				return false;
+		}
 		if (is_placement_phase()) {
 			if (us == WHITE ? rank_of(to) != RANK_1 : rank_of(to) != RANK_6)
 				return false;
@@ -1114,7 +1132,7 @@ Move Position::to_move(Move16 m16) const
 	//      ASSERT_LV3((m >> 16) == 0);
 
 	Move m = (Move)m16.to_u16();
-
+	//std::cout << std::bitset<32>(m) << "\n";
 	// MOVE_NULLの可能性はないはずだが、MOVE_WINである可能性はある。
 	// それはそのまま返す。(MOVE_WINの機会はごくわずかなのでこれのために
 	// このチェックが探索時に起きるのは少し馬鹿らしい気もする。
@@ -1228,19 +1246,31 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 	if (is_drop(m))
 	{
+		//printf("drop\n");
 		// --- 駒打ち
 
 		// 移動先の升は空のはず
 		ASSERT_LV2(piece_on(to) == NO_PIECE);
 
 		Piece pc = moved_piece_after(m);
-		PieceType pr = raw_type_of(pc);
-		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
+
+		PieceType pr;
+
+		pr = (pc == B_KING || pc == W_KING) ? KING : raw_type_of(pc);
+
+		if (!(PAWN <= pr && pr <= PIECE_HAND_NB)) std::cout << "move:" << m << "\n";
+		ASSERT_LV2(PAWN <= pr && pr <= PIECE_HAND_NB);
 
 		// Zobrist keyの更新
-		h -= Zobrist::hand[Us][pr];
-		k += Zobrist::psq[to][pc];
-
+		if (pr == KING) {
+			k += Zobrist::psq[to][pc];
+			givesCheck = false;
+			kingSquare[Us] = to;
+		}
+		else {
+			h -= Zobrist::hand[Us][pr];
+			k += Zobrist::psq[to][pc];
+		}
 		// なるべく早い段階でのTTに対するprefetch
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
 		const Key key = k + h;
@@ -1253,19 +1283,28 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// 打駒した駒に関するevalListの更新。
 #if defined (USE_EVAL_LIST)
-		PieceNumber piece_no = piece_no_of(Us, pr);
+
+		PieceNumber piece_no =
+			(pc == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
+			(pc == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
+			piece_no_of(Us, pr);
+		if (!(is_ok(piece_no))) std::cout << ", pr:" << pr << "\n";
 		ASSERT_LV3(is_ok(piece_no));
 
 		// KPPの差分計算のために移動した駒をStateInfoに記録しておく。
 		dp.dirty_num = 1; // 動いた駒は1個
 		dp.pieceNo[0] = piece_no;
 		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no);
-		evalList.put_piece(piece_no , to, pc);
+		evalList.put_piece(piece_no, to, pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 #endif
-
+		if (is_placement_phase()) {
+			if (pr == ROOK)sub_hand(hand[Us], BISHOP);
+			else if (pr == BISHOP)sub_hand(hand[Us], ROOK);
+		}
 		// piece_no_of()のときにこの手駒の枚数を参照するのであとで更新。
-		sub_hand(hand[Us], pr);
+		if(pr != KING)sub_hand(hand[Us], pr);
+		else hand_king[Us] = 0;
 
 		// 王手している駒のbitboardを更新する。
 		// 駒打ちなのでこの駒で王手になったに違いない。駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
@@ -1278,7 +1317,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			// やねうら王ではStateInfoのmemcpy()をしないことにしたので
 			// 前ノードの値に対して、" + 2 "しないといけない。
 
-		} else {
+		}
+		else {
 			st->checkersBB = ZERO_BB;
 			st->continuousCheck[Us] = 0;
 		}
@@ -1298,205 +1338,213 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// 駒打ちによる利きの更新処理
 		LongEffect::update_by_dropping_piece<Us>(*this, to, pc);
 #endif
+		
 
-	} else {
+	}
+	else {
 
-		// -- 駒の移動
-		Square from = from_sq(m);
-		ASSERT_LV2(is_ok(from));
+		if (!(is_placement_phase())) {
 
-		// 移動させる駒
-		Piece moved_pc = piece_on(from);
-		ASSERT_LV2(moved_pc != NO_PIECE);
+			// -- 駒の移動
+			Square from = from_sq(m);
+			ASSERT_LV2(is_ok(from));
 
-		// 移動先に駒の配置
-		// もし成る指し手であるなら、成った後の駒を配置する。
-		Piece moved_after_pc = moved_piece_after(m);
+			// 移動させる駒
+			Piece moved_pc = piece_on(from);
+			ASSERT_LV2(moved_pc != NO_PIECE);
+
+			// 移動先に駒の配置
+			// もし成る指し手であるなら、成った後の駒を配置する。
+			Piece moved_after_pc = moved_piece_after(m);
 
 #if defined (USE_PIECE_VALUE)
-		materialDiff = is_promote(m) ? Eval::ProDiffPieceValue[moved_pc] : 0;
+			materialDiff = is_promote(m) ? Eval::ProDiffPieceValue[moved_pc] : 0;
 #endif
 
-		// 移動先の升にある駒
-		Piece to_pc = piece_on(to);
-		if (to_pc != NO_PIECE)
-		{
-			// --- capture(駒の捕獲)
+			// 移動先の升にある駒
+			Piece to_pc = piece_on(to);
+			if (to_pc != NO_PIECE)
+			{
+				// --- capture(駒の捕獲)
 
 #if defined(LONG_EFFECT_LIBRARY)
 	  // 移動先で駒を捕獲するときの利きの更新
-			LongEffect::update_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
+				LongEffect::update_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
 #endif
 
-			// 玉を取る指し手が実現することはない。この直前の局面で玉を逃げる指し手しか合法手ではないし、
-			// 玉を逃げる指し手がないのだとしたら、それは詰みの局面であるから。
+				// 玉を取る指し手が実現することはない。この直前の局面で玉を逃げる指し手しか合法手ではないし、
+				// 玉を逃げる指し手がないのだとしたら、それは詰みの局面であるから。
 
-			ASSERT_LV1(type_of(to_pc) != KING);
+				ASSERT_LV1(type_of(to_pc) != KING);
 
-			PieceType pr = raw_type_of(to_pc);
+				PieceType pr = raw_type_of(to_pc);
 
-			// 捕獲した駒に関するevalListの更新
+				// 捕獲した駒に関するevalListの更新
 #if defined (USE_EVAL_LIST)
 			// このPieceNumberの駒が手駒に移動したのでEvalListのほうを更新しておく。
-			PieceNumber piece_no = piece_no_of(to);
-			ASSERT_LV3(is_ok(piece_no));
-			dp.dirty_num = 2; // 動いた駒は2個
-			dp.pieceNo[1] = piece_no;
-			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
-			evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
-			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
+				PieceNumber piece_no = piece_no_of(to);
+				ASSERT_LV3(is_ok(piece_no));
+				dp.dirty_num = 2; // 動いた駒は2個
+				dp.pieceNo[1] = piece_no;
+				dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
+				evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
+				dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
 #endif
 
-			// 駒取りなら現在の手番側の駒が増える。
-			add_hand(hand[Us], pr);
+				// 駒取りなら現在の手番側の駒が増える。
+				add_hand(hand[Us], pr);
 
-			// 捕獲される駒の除去
-			remove_piece(to);
+				// 捕獲される駒の除去
+				remove_piece(to);
 
-			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-			k -= Zobrist::psq[to][to_pc];
-			h += Zobrist::hand[Us][pr];
+				// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
+				k -= Zobrist::psq[to][to_pc];
+				h += Zobrist::hand[Us][pr];
 
-			// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
-			st->capturedPiece = to_pc;
+				// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
+				st->capturedPiece = to_pc;
 
 #if defined (USE_PIECE_VALUE)
-			// 評価関数で使う駒割りの値も更新
-			materialDiff += Eval::CapturePieceValue[to_pc];
+				// 評価関数で使う駒割りの値も更新
+				materialDiff += Eval::CapturePieceValue[to_pc];
 #endif
 
-		} else {
-			// 駒を取らない指し手
+			}
+			else {
+				// 駒を取らない指し手
 
-			st->capturedPiece = NO_PIECE;
+				st->capturedPiece = NO_PIECE;
 
 #if defined (LONG_EFFECT_LIBRARY)
-			// 移動先で駒を捕獲しないときの利きの更新
-			LongEffect::update_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
+				// 移動先で駒を捕獲しないときの利きの更新
+				LongEffect::update_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
 #if defined (USE_EVAL_LIST)
-			dp.dirty_num = 1; // 動いた駒は1個
+				dp.dirty_num = 1; // 動いた駒は1個
 #endif
-		}
+			}
 
 #if defined (USE_EVAL_LIST)
-		// 移動元にあった駒のpiece_noを得る
-		PieceNumber piece_no2 = piece_no_of(from);
-		dp.pieceNo[0] = piece_no2;
-		dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
+			// 移動元にあった駒のpiece_noを得る
+			PieceNumber piece_no2 = piece_no_of(from);
+			dp.pieceNo[0] = piece_no2;
+			dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
 #endif
 
-		// 移動元の升からの駒の除去
-		remove_piece(from);
-		// 移動先の升に駒を配置
-		put_piece(to, moved_after_pc);
+			// 移動元の升からの駒の除去
+			remove_piece(from);
+			// 移動先の升に駒を配置
+			put_piece(to, moved_after_pc);
 
 #if defined (USE_EVAL_LIST)
-		evalList.put_piece(piece_no2, to, moved_after_pc);
-		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
+			evalList.put_piece(piece_no2, to, moved_after_pc);
+			dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
 #endif
 
-		// 王を移動させる手であるなら、kingSquareを更新しておく。
-		// これを更新しておかないとking_square()が使えなくなってしまう。
-		// 王は駒打できないのでdropの指し手に含まれていることはないから
-		// dropのときにはkingSquareを更新する必要はない。
-		if (type_of(moved_pc) == KING)
-			kingSquare[Us] = to;
+			// 王を移動させる手であるなら、kingSquareを更新しておく。
+			// これを更新しておかないとking_square()が使えなくなってしまう。
+			// 王は駒打できないのでdropの指し手に含まれていることはないから
+			// dropのときにはkingSquareを更新する必要はない。
+			if (type_of(moved_pc) == KING)
+				kingSquare[Us] = to;
 
-		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
-		k -= Zobrist::psq[from][moved_pc];
-		k += Zobrist::psq[to][moved_after_pc];
+			// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
+			k -= Zobrist::psq[from][moved_pc];
+			k += Zobrist::psq[to][moved_after_pc];
 
-		// 駒打ちでないときはprefetchはこの時点まで延期される。
-		const Key key = k + h;
-		prefetch(TT.first_entry(key));
+			// 駒打ちでないときはprefetchはこの時点まで延期される。
+			const Key key = k + h;
+			prefetch(TT.first_entry(key));
 #if defined(USE_EVAL_HASH)
-		Eval::prefetch_evalhash(key);
+			Eval::prefetch_evalhash(key);
 #endif
 
-		// put_piece()などを用いたのでupdateする。
-		// ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
-		update_bitboards();
+			// put_piece()などを用いたのでupdateする。
+			// ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
+			update_bitboards();
 
-		// 王手している駒のbitboardを更新する。
-		if (givesCheck)
-		{
-			// 高速化のためにごにょごにょ。
-#if 1
-			const StateInfo* prevSt = st->previous;
-
-			// 1) 直接王手であるかどうかは、移動によって王手になる駒別のBitboardを調べればわかる。
-			st->checkersBB = prevSt->checkSquares[type_of(moved_after_pc)] & to;
-
-			// 2) 開き王手になるのか
-			const Square ksq = king_square(~Us);
-			// pos->discovered_check_candidates()で取得したいが、もうstを更新してしまっているので出来ないので
-			// prevSt->blockersForKing[~Us] & pieces(Us)と愚直に書く。
-			// また、pieces(Us)のうち今回移動させる駒は、実はすでに移動させてしまっているので、fromと書く。
-
-			if (discovered(from, to, ksq, prevSt->blockersForKing[~Us] & from))
+			// 王手している駒のbitboardを更新する。
+			if (givesCheck)
 			{
-				auto directions = directions_of(from, ksq);
-				switch (pop_directions(directions)) {
+				// 高速化のためにごにょごにょ。
+#if 1
+				const StateInfo* prevSt = st->previous;
 
-					// fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
-					// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
-					// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
+				// 1) 直接王手であるかどうかは、移動によって王手になる駒別のBitboardを調べればわかる。
+				st->checkersBB = prevSt->checkSquares[type_of(moved_after_pc)] & to;
 
-					// rookEffect()を用いると、香での王手に対応するのが難しくなるので、
-					// 縦と横を場合分けするほうが簡単
+				// 2) 開き王手になるのか
+				const Square ksq = king_square(~Us);
+				// pos->discovered_check_candidates()で取得したいが、もうstを更新してしまっているので出来ないので
+				// prevSt->blockersForKing[~Us] & pieces(Us)と愚直に書く。
+				// また、pieces(Us)のうち今回移動させる駒は、実はすでに移動させてしまっているので、fromと書く。
 
-				case DIRECT_U: case DIRECT_D:
-					st->checkersBB |= rookFileEffect(from, pieces()) & pieces(Us); break;
+				if (discovered(from, to, ksq, prevSt->blockersForKing[~Us] & from))
+				{
+					auto directions = directions_of(from, ksq);
+					switch (pop_directions(directions)) {
 
-					// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
-					// →　飛車の横だけの利きを求める関数を用意したので、それを用いると上と同様の手法で求まる。
+						// fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
+						// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
+						// 敵玉はpieces(Us)なので含まれないはずであり、結果として自分の開き王手している駒だけが足される。
 
-				case DIRECT_R: case DIRECT_L:
-					st->checkersBB |= rookRankEffect(from, pieces()) & pieces(Us); break;
+						// rookEffect()を用いると、香での王手に対応するのが難しくなるので、
+						// 縦と横を場合分けするほうが簡単
+
+					case DIRECT_U: case DIRECT_D:
+						st->checkersBB |= rookFileEffect(from, pieces()) & pieces(Us); break;
+
+						// 横に利く遠方駒は飛車(+龍)しかないので、玉の位置から飛車の利きを求めてその利きのなかにいる飛車を足す。
+						// →　飛車の横だけの利きを求める関数を用意したので、それを用いると上と同様の手法で求まる。
+
+					case DIRECT_R: case DIRECT_L:
+						st->checkersBB |= rookRankEffect(from, pieces()) & pieces(Us); break;
 
 
 #if defined(USE_OLD_YANEURAOU_EFFECT)
-					// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
-					// →　上と同様の方法が使える。discovered()により開き王手になることは確定している。
+						// 斜めに利く遠方駒は角(+馬)しかないので、玉の位置から角の利きを求めてその利きのなかにいる角を足す。
+						// →　上と同様の方法が使える。discovered()により開き王手になることは確定している。
 
-				case DIRECT_RU: case DIRECT_LD:
-					st->checkersBB |= bishopEffect0(from, pieces()) & pieces(Us); break;
+					case DIRECT_RU: case DIRECT_LD:
+						st->checkersBB |= bishopEffect0(from, pieces()) & pieces(Us); break;
 
-				case DIRECT_RD: case DIRECT_LU:
-					st->checkersBB |= bishopEffect1(from, pieces()) & pieces(Us); break;
+					case DIRECT_RD: case DIRECT_LU:
+						st->checkersBB |= bishopEffect1(from, pieces()) & pieces(Us); break;
 #else
 
-				// magic bitboardを用いる場合の処理
+						// magic bitboardを用いる場合の処理
 
-				// 斜め方向にあった駒を移動させての開き王手になっているので移動させた駒は角・馬ではない。
-				// (移動させた駒が角か馬であったなら、その駒で王を取れるので、非合法局面である)
-				// この移動させた駒はすでに取り除かれている。
-				// よって、王の升目から角が利いているUsの駒(角・馬)があれば、それは王手している遠方駒。
+						// 斜め方向にあった駒を移動させての開き王手になっているので移動させた駒は角・馬ではない。
+						// (移動させた駒が角か馬であったなら、その駒で王を取れるので、非合法局面である)
+						// この移動させた駒はすでに取り除かれている。
+						// よって、王の升目から角が利いているUsの駒(角・馬)があれば、それは王手している遠方駒。
 
-				case DIRECT_RU: case DIRECT_LD:
-				case DIRECT_RD: case DIRECT_LU:
-					st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP_HORSE); break;
+					case DIRECT_RU: case DIRECT_LD:
+					case DIRECT_RD: case DIRECT_LU:
+						st->checkersBB |= bishopEffect(ksq, pieces()) & pieces(Us, BISHOP_HORSE); break;
 
 #endif
-				default: UNREACHABLE;
+					default: UNREACHABLE;
+					}
 				}
-			}
 
-			// 差分更新したcheckersBBが正しく更新されているかをテストするためのassert
-			ASSERT_LV3(st->checkersBB == attackers_to(Us, king_square(~Us)));
+				// 差分更新したcheckersBBが正しく更新されているかをテストするためのassert
+				ASSERT_LV3(st->checkersBB == attackers_to(Us, king_square(~Us)));
 #else
 			// 差分更新しないとき用。
-			st->checkersBB = attackers_to(Us, king_square(~Us));
+				st->checkersBB = attackers_to(Us, king_square(~Us));
 #endif
-			st->continuousCheck[Us] = prev->continuousCheck[Us] + 2;
+				st->continuousCheck[Us] = prev->continuousCheck[Us] + 2;
 
-		} else {
+			}
+			else {
 
-			st->checkersBB = ZERO_BB;
-			st->continuousCheck[Us] = 0;
+				st->checkersBB = ZERO_BB;
+				st->continuousCheck[Us] = 0;
+			}
 		}
 	}
+
 	// 相手番のほうは関係ないので前ノードの値をそのまま受け継ぐ。
 	st->continuousCheck[~Us] = prev->continuousCheck[~Us];
 
@@ -1515,7 +1563,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	st->hand = hand[sideToMove];
 
 	// このタイミングで王手関係の情報を更新しておいてやる。
-	set_check_info<false>(st);
+	if(!(is_placement_phase())) set_check_info<false>(st);
 
 	//ASSERT_LV5(evalList.is_valid(*this));
 
@@ -1621,16 +1669,25 @@ void Position::undo_move_impl(Move m)
 		// --- 駒打ち
 
 		// toの場所にある駒を手駒に戻す
-		PieceType pt = raw_type_of(moved_after_pc);
-
+		PieceType pt =
+			(moved_after_pc == B_KING) ? KING : // 先手玉
+			(moved_after_pc == W_KING) ? KING : // 後手玉
+			raw_type_of(moved_after_pc);
 #if defined (USE_EVAL_LIST)
-		evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
+		if(pt == KING) evalList.put_piece(piece_no, Us, pt, hand_king[Us]);
+		else evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
 #endif
-
-		add_hand(hand[Us], pt);
+		if (is_placement_phase()) {
+			if (pt == ROOK)add_hand(hand[Us], BISHOP);
+			else if (pt == BISHOP)add_hand(hand[Us], ROOK);
+		}
+		if (pt != KING)add_hand(hand[Us], pt);
+		else hand_king[Us] = 1;
 
 		// toの場所から駒を消す
 		remove_piece(to);
+
+		if (pt == KING)kingSquare[Us] = SQ_NB;
 
 #if defined(LONG_EFFECT_LIBRARY)
 		// 駒打ちのundoによる利きの復元
@@ -1638,68 +1695,69 @@ void Position::undo_move_impl(Move m)
 #endif
 
 	} else {
+		if (!(is_placement_phase())) {
+			// --- 通常の指し手
 
-		// --- 通常の指し手
+			auto from = from_sq(m);
+			ASSERT_LV2(is_ok(from));
 
-		auto from = from_sq(m);
-		ASSERT_LV2(is_ok(from));
+			// toの場所から駒を消す
+			remove_piece(to);
 
-		// toの場所から駒を消す
-		remove_piece(to);
+			// toの地点には捕獲された駒があるならその駒が盤面に戻り、手駒から減る。
+			// 駒打ちの場合は捕獲された駒があるということはありえない。
+			// (なので駒打ちの場合は、st->capturedTypeを設定していないから参照してはならない)
+			if (st->capturedPiece != NO_PIECE)
+			{
+				Piece to_pc = st->capturedPiece;
 
-		// toの地点には捕獲された駒があるならその駒が盤面に戻り、手駒から減る。
-		// 駒打ちの場合は捕獲された駒があるということはありえない。
-		// (なので駒打ちの場合は、st->capturedTypeを設定していないから参照してはならない)
-		if (st->capturedPiece != NO_PIECE)
-		{
-			Piece to_pc = st->capturedPiece;
-
-			// 盤面のtoの地点に捕獲されていた駒を復元する
-			put_piece(to, to_pc);
-			put_piece(from, moved_pc);
+				// 盤面のtoの地点に捕獲されていた駒を復元する
+				put_piece(to, to_pc);
+				put_piece(from, moved_pc);
 
 #if defined (USE_EVAL_LIST)
-			PieceNumber piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
-			ASSERT_LV3(is_ok(piece_no2));
+				PieceNumber piece_no2 = piece_no_of(Us, raw_type_of(to_pc)); // 捕っていた駒(手駒にある)のpiece_no
+				ASSERT_LV3(is_ok(piece_no2));
 
-			evalList.put_piece(piece_no2, to, to_pc);
+				evalList.put_piece(piece_no2, to, to_pc);
 
-			// 手駒から減らす
-			sub_hand(hand[Us], raw_type_of(to_pc));
+				// 手駒から減らす
+				sub_hand(hand[Us], raw_type_of(to_pc));
 
-			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-			// moved_pcが玉であることはあるが、いまkingSquareを更新してしまうと
-			// rewind_by_capturing_piece()でその位置を用いているのでまずい。(かも)
-			evalList.put_piece(piece_no, from , moved_pc);
+				// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
+				// moved_pcが玉であることはあるが、いまkingSquareを更新してしまうと
+				// rewind_by_capturing_piece()でその位置を用いているのでまずい。(かも)
+				evalList.put_piece(piece_no, from, moved_pc);
 #else
-			// 手駒から減らす
-			sub_hand(hand[Us], raw_type_of(to_pc));
+				// 手駒から減らす
+				sub_hand(hand[Us], raw_type_of(to_pc));
 #endif
 
 #if defined(LONG_EFFECT_LIBRARY)
-			// 移動先で駒を捕獲するときの利きの更新
-			LongEffect::rewind_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
+				// 移動先で駒を捕獲するときの利きの更新
+				LongEffect::rewind_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc, to_pc);
 #endif
 
-		}
-		else {
+			}
+			else {
 
-			put_piece(from, moved_pc);
+				put_piece(from, moved_pc);
 
 #if defined (USE_EVAL_LIST)
-			// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-			evalList.put_piece(piece_no, from, moved_pc);
+				// 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
+				evalList.put_piece(piece_no, from, moved_pc);
 #endif
 
 #if defined(LONG_EFFECT_LIBRARY)
-			// 移動先で駒を捕獲しないときの利きの更新
-			// このときに元あった玉の位置を用いるのでkingSquareはまだ更新してはならない。
-			LongEffect::rewind_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
+				// 移動先で駒を捕獲しないときの利きの更新
+				// このときに元あった玉の位置を用いるのでkingSquareはまだ更新してはならない。
+				LongEffect::rewind_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
-		}
+			}
 
-		if (type_of(moved_pc) == KING)
-			kingSquare[Us] = from;
+			if (type_of(moved_pc) == KING)
+				kingSquare[Us] = from;
+		}
 	}
 
 	// put_piece()などを使ったのでbitboardを更新する。
@@ -2369,21 +2427,30 @@ bool Position::pos_is_ok() const
 			return false;
 #endif
 
+	if (is_placement_phase())return true;
 	// 3) 王手している駒
-	if (st->checkersBB != attackers_to(~sideToMove, king_square(sideToMove)))
+	if (st->checkersBB != attackers_to(~sideToMove, king_square(sideToMove))) {
+		printf("3\n");
 		return false;
+	}
 
 	// 4) 相手玉が取れるということはないか
-	if (effected_to(sideToMove, king_square(~sideToMove)))
+	if (effected_to(sideToMove, king_square(~sideToMove))) {
+		printf("4\n");
 		return false;
+	}
 
 	// 5) occupied bitboardは合っているか
-	if ((pieces() != (pieces(BLACK) | pieces(WHITE))) || (pieces(BLACK) & pieces(WHITE)))
+	if ((pieces() != (pieces(BLACK) | pieces(WHITE))) || (pieces(BLACK) & pieces(WHITE))) {
+		printf("5\n");
 		return false;
+	}
 
 	// 6) 王手している駒は敵駒か
-	if (checkers() & pieces(side_to_move()))
+	if (checkers() & pieces(side_to_move())) {
+		printf("6\n");
 		return false;
+	}
 
 	// 二歩のチェックなど云々かんぬん..面倒くさいので省略。
 

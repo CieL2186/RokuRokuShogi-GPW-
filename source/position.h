@@ -220,6 +220,9 @@ public:
 	// c側の手駒を返す。
 	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
+	// c側の手駒に玉があるかを返す。
+	bool hand_of_king(Color c) const { return hand_king[c] == 1; }
+
 	// c側の玉の位置を返す。
 	FORCE_INLINE Square king_square(Color c) const {
 		ASSERT_LV3(is_ok(c));
@@ -231,9 +234,8 @@ public:
 	bool pos_is_ok() const;
 
 	bool is_placement_phase() const {
-		return game_ply() <= 10;
+		return game_ply() <= 12;
 	}
-
 
 	void remove_hand_piece(Color c, PieceType pt);
 	void clear_hands();
@@ -671,19 +673,26 @@ private:
 
 	// c側の手駒ptの最後の1枚のBonaPiece番号を返す
 	Eval::BonaPiece bona_piece_of(Color c, PieceType pt) const {
-		// c側の手駒ptの枚数
+		if (pt == KING) {
+			return c == WHITE ? (Eval::BonaPiece::f_king) : (Eval::BonaPiece::e_king);
+		}
+
 		int ct = hand_count(hand[c], pt);
+		//if (pt == KING)std::cout <<"bona:" << (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1) << "\n";
 		ASSERT_LV3(ct > 0);
 		return (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1);
 	}
 
 	// c側の手駒ptの(最後の1枚の)PieceNumberを返す。
-	PieceNumber piece_no_of(Color c, PieceType pt) const { return evalList.piece_no_of_hand(bona_piece_of(c, pt)); }
+	PieceNumber piece_no_of(Color c, PieceType pt) const {
+		if (pt == KING)return PIECE_NUMBER_KING;
+		else return evalList.piece_no_of_hand(bona_piece_of(c, pt)); }
 
 	// 盤上のsqの升にある駒のPieceNumberを返す。
 	PieceNumber piece_no_of(Square sq) const
 	{
 		ASSERT_LV3(piece_on(sq) != NO_PIECE);
+		if (piece_on(sq) == B_KING || piece_on(sq) == W_KING)return PIECE_NUMBER_KING;
 		PieceNumber n = evalList.piece_no_of_board(sq);
 		ASSERT_LV3(is_ok(n));
 		return n;
@@ -701,6 +710,7 @@ private:
 
 	// 手駒
 	Hand hand[COLOR_NB];
+	int hand_king[COLOR_NB];
 
 	// 手番
 	Color sideToMove;

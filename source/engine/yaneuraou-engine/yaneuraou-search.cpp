@@ -2002,8 +2002,9 @@ namespace {
 			// root nodeはlegal()だとわかっているのでこのチェックは不要。
 			// 非合法手はほとんど含まれていないから、以前はこの判定はdo_move()の直前まで遅延させたほうが得だったが、
 			// do_move()するまでの枝刈りが増えてきたので、ここでやったほうが良いようだ。
+			
 			if (!rootNode && !pos.legal(move))
-				continue;
+				continue;			
 
 			// do_move()した指し手の数のインクリメント
 			ss->moveCount = ++moveCount;
@@ -2513,7 +2514,7 @@ namespace {
 			{
 				RootMove& rm = *std::find(thisThread->rootMoves.begin(),
 					thisThread->rootMoves.end(), move);
-
+				//std::cout << "move:" << move << value << "\n";
 				// PVの指し手か、新しいbest moveか？
 				if (moveCount == 1 || value > alpha)
 				{
@@ -2605,6 +2606,7 @@ namespace {
 			}
 		}
 		// end of while
+		//printf("end_of_while\n");
 
 		// -----------------------
 		// Step 20. Check for mate and stalemate
@@ -2676,7 +2678,6 @@ namespace {
 
 		// qsearch()内の末尾にあるassertの文の説明を読むこと。
 		ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
-
 		return bestValue;
 	}
 

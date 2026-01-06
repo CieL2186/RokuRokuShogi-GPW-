@@ -553,6 +553,7 @@ enum Move: uint32_t {
 	MOVE_RESIGN  = (2 << 7) + 2,  // << で出力したときに"resign"と表示する投了を意味する指し手。
 	MOVE_WIN     = (3 << 7) + 3,  // 入玉時の宣言勝ちのために使う特殊な指し手
 
+	MOVE_DROP_KING	 = (1 << 15) - (1 << 7),
 	MOVE_DROP    = 1 << 14,       // 駒打ちフラグ
 	MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
 };
@@ -623,7 +624,8 @@ static    bool is_promote(Move16 m) { return (m.to_u16() & MOVE_PROMOTE)!=0; }
 
 // 駒打ち(is_drop()==true)のときの打った駒
 // 先後の区別なし。PAWN～ROOKまでの値が返る。
-constexpr PieceType move_dropped_piece(Move m) { return (PieceType)((m >> 7) & 0x7f); }
+constexpr PieceType move_dropped_piece(Move m) {
+	return (PieceType)((m >> 7) & 0x7f); }
 static    PieceType move_dropped_piece(Move16 m) { return (PieceType)((m.to_u16() >> 7) & 0x7f); }
 
 // us側のptをfromからtoに移動させる指し手を生成して返す。
@@ -641,7 +643,8 @@ constexpr Move make_move_promote(Square from, Square to , Color us , PieceType p
 // us側の駒ptをtoに打つ指し手を生成して返す
 // Move16を返すほうは、どちらの駒であるかの情報は持っていない。
 static Move16 make_move_drop16(PieceType pt, Square to) { return (Move16)(to + (pt << 7) + MOVE_DROP); }
-constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return (Move)(to + (pt << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)); }
+constexpr Move make_move_drop(PieceType pt, Square to , Color us ) {
+	return (Move)(to + (pt << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)); }
 
 // 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
 static Move16 reverse_move(Move m) { return make_move16(to_sq(m), from_sq(m)); }
@@ -717,7 +720,7 @@ static std::ostream& operator<<(std::ostream& os, ExtMove m) { os << m.move << '
 enum Hand : uint32_t { HAND_ZERO = 0, };
 
 // 手駒のbit位置
-constexpr int PIECE_BITS[PIECE_HAND_NB] = { 0, 0 /*歩*/, 8 /*香*/, 12 /*桂*/, 16 /*銀*/, 20 /*角*/, 24 /*飛*/ , 28 /*金*/ };
+constexpr int PIECE_BITS[PIECE_HAND_NB] = { 0, 0/*歩*/, 8 /*香*/, 12 /*桂*/, 16 /*銀*/, 20 /*角*/, 24 /*飛*/ , 28 /*金*/};
 
 // PieceType(歩,香,桂,銀,金,角,飛)を手駒に変換するテーブル
 constexpr Hand PIECE_TO_HAND[PIECE_HAND_NB] = {
@@ -728,11 +731,11 @@ constexpr Hand PIECE_TO_HAND[PIECE_HAND_NB] = {
 	(Hand)(1 << PIECE_BITS[SILVER]) /*銀*/,
 	(Hand)(1 << PIECE_BITS[BISHOP]) /*角*/,
 	(Hand)(1 << PIECE_BITS[ROOK])   /*飛*/,
-	(Hand)(1 << PIECE_BITS[GOLD])   /*金*/
+	(Hand)(1 << PIECE_BITS[GOLD])   /*金*/,
 };
 
 // その持ち駒を表現するのに必要なbit数のmask(例えば3bitなら2の3乗-1で7)
-constexpr int PIECE_BIT_MASK[PIECE_HAND_NB] = { 0,31/*歩は5bit*/,7/*香は3bit*/,7/*桂*/,7/*銀*/,3/*角*/,3/*飛*/,7/*金*/ };
+constexpr int PIECE_BIT_MASK[PIECE_HAND_NB] = { 0,15/*歩は5bit*/,7/*香は3bit*/,7/*桂*/,7/*銀*/,3/*角*/,3/*飛*/,7/*金*/};
 
 constexpr u32 PIECE_BIT_MASK2[PIECE_HAND_NB] = {
 	0,
@@ -742,7 +745,7 @@ constexpr u32 PIECE_BIT_MASK2[PIECE_HAND_NB] = {
 	PIECE_BIT_MASK[SILVER] << PIECE_BITS[SILVER],
 	PIECE_BIT_MASK[BISHOP] << PIECE_BITS[BISHOP],
 	PIECE_BIT_MASK[ROOK]   << PIECE_BITS[ROOK]  ,
-	PIECE_BIT_MASK[GOLD]   << PIECE_BITS[GOLD]
+	PIECE_BIT_MASK[GOLD]   << PIECE_BITS[GOLD]  ,
 };
 
 // 駒の枚数が格納されているbitが1となっているMASK。(駒種を得るときに使う)
@@ -762,7 +765,8 @@ constexpr u32 HAND_BORROW_MASK = (HAND_BIT_MASK << 1) & ~HAND_BIT_MASK;
 // 手駒pcの枚数を返す。
 // このASSERTを有効化するとconstexprにならないのでコメントアウトしておく。
 // 返し値は引き算するときに符号を意識したくないのでintにしておく。
-constexpr int hand_count(Hand hand, PieceType pr) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); */ return (int)(hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
+constexpr int hand_count(Hand hand, PieceType pr) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); */
+	return (int)(hand >> PIECE_BITS[pr]) & PIECE_BIT_MASK[pr]; }
 
 // 手駒pcを持っているかどうかを返す。
 constexpr u32 hand_exists(Hand hand, PieceType pr) { /* ASSERT_LV2(PIECE_HAND_ZERO <= pr && pr < PIECE_HAND_NB); */ return hand & PIECE_BIT_MASK2[pr]; }

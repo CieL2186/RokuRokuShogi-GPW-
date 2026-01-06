@@ -5,6 +5,7 @@
 #include "thread.h"
 #include "tt.h"
 
+#include <bitset>
 #include <sstream>
 #include <queue>
 
@@ -470,6 +471,7 @@ void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 		else
 			pos.do_move(m, states->back());
 	}
+	//if (m == MOVE_NONE)printf("none\n");
 }
 
 // "setoption"コマンド応答。
@@ -1057,8 +1059,9 @@ Move USI::to_move(const Position& pos, const std::string& str)
 		sync_cout << "info string Error!! Illegal Move = " << move << sync_endl;
 #endif
 
-	if (pos.pseudo_legal(move) && pos.legal(move))
+	if (pos.pseudo_legal(move) && pos.legal(move)){
 		return move;
+	}
 
 	// いかなる状況であろうとこのような指し手はエラー表示をして弾いていいと思うが…。
 	// cout << "\nIlligal Move : " << str << "\n";
@@ -1094,7 +1097,7 @@ Move16 USI::to_move16(const string& str)
 		}
 		else
 		{
-			for (int i = 1; i <= 7; ++i)
+			for (int i = 1; i <= 8; ++i)
 				if (PieceToCharBW[i] == str[0])
 				{
 					move = make_move_drop16((PieceType)i, to);

@@ -282,8 +282,10 @@ template <Color Us> struct GenerateDropMoves {
 
 		const Hand hand = pos.hand_of(Us);
 		// 手駒を持っていないならば終了
-		if (hand == 0)
+		//if (pos.hand_of_king(Us))printf("have King\n");
+		if (hand == 0 && !(pos.hand_of_king(Us))) {
 			return mlist;
+		}
 
 		// --- 歩を打つ指し手生成
 		if (hand_exists(hand, PAWN))
@@ -323,13 +325,21 @@ template <Color Us> struct GenerateDropMoves {
 			});
 
 		}
-
+		
 		// --- 歩以外を打つ指し手生成
 
+		//玉を打つ指し手生成
+		if (pos.hand_of_king(Us)) {
+			//配置パターンしか置かないから互いの陣地の一段目に限定する
+			Bitboard target2 = rank1_n_bb(~Us, RANK_5) & target;
+			target2.foreach([&](Square sq) {
+				mlist++->move = make_move_drop(KING, sq, Us);
+				});
+		}
 		// 歩以外の手駒を持っているか
 		if (hand_except_pawn_exists(hand))
 		{
-			Move drops[7];
+			Move drops[6];
 
 			// 打つ先の升を埋めればいいだけの指し手を事前に生成しておく。
 			// 基本的な戦略としては、(先手から見て)
@@ -351,7 +361,6 @@ template <Color Us> struct GenerateDropMoves {
 			if (hand_exists(hand, GOLD)  ) drops[num++] = make_move_drop(GOLD  , SQ_ZERO , Us);
 			if (hand_exists(hand, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO , Us);
 			if (hand_exists(hand, ROOK)  ) drops[num++] = make_move_drop(ROOK  , SQ_ZERO , Us);
-			if (hand_exists(hand, KING)  ) drops[num++] = make_move_drop(KING  , SQ_ZERO , Us);
 
 
 			// 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
@@ -369,7 +378,6 @@ template <Color Us> struct GenerateDropMoves {
 				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i) { mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 			}
@@ -388,7 +396,6 @@ template <Color Us> struct GenerateDropMoves {
 				case 2: target1.foreach([&](Square sq) { Unroller<2>()([&](int i){ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
 				case 3: target1.foreach([&](Square sq) { Unroller<3>()([&](int i){ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
 				case 4: target1.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
-				case 5: target1.foreach([&](Square sq) { Unroller<5>()([&](int i) { mlist++->move = (Move)(drops[i + nextToLance] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 
@@ -400,7 +407,6 @@ template <Color Us> struct GenerateDropMoves {
 				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
 				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
 				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i){ mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-				case 6: target2.foreach([&](Square sq) { Unroller<6>()([&](int i) { mlist++->move = (Move)(drops[i + nextToKnight] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 
@@ -412,13 +418,11 @@ template <Color Us> struct GenerateDropMoves {
 				case 4: target3.foreach([&](Square sq) { Unroller<4>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 5: target3.foreach([&](Square sq) { Unroller<5>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				case 6: target3.foreach([&](Square sq) { Unroller<6>()([&](int i){ mlist++->move = (Move)(drops[i] + sq); }); }); break;
-				case 7: target3.foreach([&](Square sq) { Unroller<7>()([&](int i) { mlist++->move = (Move)(drops[i] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 			}
 
 		}
-
 		return mlist;
 	}
 };
@@ -743,6 +747,7 @@ template <Color Us> struct GenerateCheckDropMoves<Us, PAWN> {
 template<MOVE_GEN_TYPE GenType, Color Us, bool All>
 ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 {
+	if (pos.is_placement_phase())return mlist;
 	// --- 駒の移動による王手
 
 	// 王手になる指し手

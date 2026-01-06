@@ -138,7 +138,8 @@ namespace Eval {
 		e_hand_bishop = 82,//f_hand_bishop + 3,//81+1
 		f_hand_rook = 85,//e_hand_bishop + 3,//84+1
 		e_hand_rook = 88,//f_hand_rook + 3,//87+1
-		fe_hand_end = 90,//e_hand_rook + 3,//90
+		fe_hand_end = 90,//e_hand_king + 3,//96+1
+
 
 #else 
 		fe_hand_end = 0,
@@ -263,7 +264,9 @@ namespace Eval {
 		}
 
 		// あるBonaPieceに対応するPieceNumberを返す。
-		PieceNumber piece_no_of_hand(BonaPiece bp) const { return piece_no_list_hand[bp]; }
+		PieceNumber piece_no_of_hand(BonaPiece bp) const {
+			return piece_no_list_hand[bp];
+		}
 		// 盤上のある升sqに対応するPieceNumberを返す。
 		PieceNumber piece_no_of_board(Square sq) const { return piece_no_list_board[sq]; }
 
