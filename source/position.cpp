@@ -1298,7 +1298,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		evalList.put_piece(piece_no, to, pc);
 		dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 #endif
-		if (is_placement_phase()) {
+		if (is_placement_phase_after()) {
 			if (pr == ROOK)sub_hand(hand[Us], BISHOP);
 			else if (pr == BISHOP)sub_hand(hand[Us], ROOK);
 		}
@@ -1677,7 +1677,7 @@ void Position::undo_move_impl(Move m)
 		if(pt == KING) evalList.put_piece(piece_no, Us, pt, hand_king[Us]);
 		else evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
 #endif
-		if (is_placement_phase()) {
+		if (is_placement_phase_after()) {
 			if (pt == ROOK)add_hand(hand[Us], BISHOP);
 			else if (pt == BISHOP)add_hand(hand[Us], ROOK);
 		}

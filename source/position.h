@@ -236,6 +236,9 @@ public:
 	bool is_placement_phase() const {
 		return game_ply() <= 12;
 	}
+	bool is_placement_phase_after()const {
+		return game_ply() <= 13;
+	}
 
 	void remove_hand_piece(Color c, PieceType pt);
 	void clear_hands();
