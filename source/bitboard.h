@@ -21,7 +21,9 @@ namespace Bitboards { void init(); }
 struct alignas(16) Bitboard
 {
 	// 64bitずつとして扱うとき用
-	u64 p;
+
+    u64 p;
+    u64 merge() const { return p; }
 
 	Bitboard& operator = (const Bitboard& rhs) { this->p = rhs.p; return *this; }
 
