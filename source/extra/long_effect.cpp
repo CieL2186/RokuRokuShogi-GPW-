@@ -79,14 +79,14 @@ namespace Effect8
       {
         Bitboard bb = ZERO_BB;
 
-        // SQ_55の地点でやってみる。
+        // SQ_44の地点でやってみる。
 
         auto d2t = Directions(d2);
         while (d2t)
         {
           auto dir = pop_directions(d2t);
 
-          auto sq = to_sqww(SQ_55 + DirectToDelta(Direct(d1)));
+          auto sq = to_sqww(SQ_44 + DirectToDelta(Direct(d1)));
           auto delta = DirectToDeltaWW(dir);
           
           for (int i = 0; i < 3; ++i)
@@ -96,8 +96,8 @@ namespace Effect8
             bb ^= sqww_to_sq(sq);
           }
         }
-        
-        auto effect8 = around8(bb, SQ_55);
+
+        auto effect8 = around8(bb, SQ_44);
 
         cutoff_directions_table[d1][d2] = effect8;
       }
@@ -106,14 +106,21 @@ namespace Effect8
 
   Directions around8(const Bitboard& b, Square sq)
   {
-    // This algorithm is developed by tanuki- and yaneurao in 2016.
+    // 6x6 は Bitboard が u64 1枚なので、単純シフトで正規化できる
+    constexpr Square BASE = SQ_33;
 
-    // sqがSQ_32(p[1]から見るとSQ_92の左の升)に来るように正規化する。(SQ_22だと後半が64回以上のシフトが必要になる)
-    auto t = uint32_t((sq < SQ_32) ? (b.p[0] << int(SQ_32 - sq)) :
-      ((b.p[0] >> int(sq - SQ_32)) | (b.p[1] << int(SQ_92 + SQ_L - sq)))); // p[1]のSQ_92の左の升は、p[0]のSQ_32相当。
+    uint32_t t = (sq <= BASE)
+      ? uint32_t(b.p << int(BASE - sq))
+      : uint32_t(b.p >> int(sq - BASE));
 
-                                                                              // PEXTで8近傍の状態を回収。
-    return (Directions)PEXT32(t, 0b111000000101000000111000000000);
+    // BASE=SQ_33(14) の8近傍 = {7,8,9,13,15,19,20,21}
+    // 順番が RU,R,RD,U,D,LU,L,LD になっているので、PEXT結果がそのままbit0..7になる
+    constexpr uint32_t MASK =
+        (1u <<  7) | (1u <<  8) | (1u <<  9) |
+        (1u << 13) | (1u << 15) |
+        (1u << 19) | (1u << 20) | (1u << 21); // = 0x0038A380
+
+    return (Directions)PEXT32(t, MASK);
   }
 
   std::ostream& operator<<(std::ostream& os, Directions d) { return output_around_n(os, d, 3); }
@@ -137,8 +144,8 @@ namespace Effect24
 
     // -- ymm_direct_to_around8[]の初期化
     {
-      u16 d81[81];
-      memset(d81, 0, sizeof(d81));
+      u16 d36[36];
+      memset(d36, 0, sizeof(d36));
       auto sq33_around9 = kingEffect(SQ_33) ^ SQ_33;
 
       for (auto sq : SQ)
@@ -156,23 +163,28 @@ namespace Effect24
           if (sq33_around9 & sqww_to_sq(sqww))
             d |= Effect8::to_directions(dir);
         }
-        d81[sq] = d;
+        d36[sq] = d;
       }
       for (int i = 0; i < 3; ++i)
-        ymm_direct_to_around8[i] = ymm(&d81[i * 16]); // 32byteずつ
+        ymm_direct_to_around8[i] = ymm(&d36[i * 16]); // 32byteずつ
     }
 
   }
 
   Directions around24(const Bitboard& b, Square sq)
-  {
-    // sqがSQ_33に来るように正規化する。
-    auto t = (sq < SQ_33) ? (b.p[0] << int(SQ_33 - sq)) :
-      ((b.p[0] >> int(sq - SQ_33)) | (b.p[1] << int(SQ_93 + SQ_L - sq))); // p[1]のSQ_93の左は、p[0]のSQ_33
+{
+  // 6x6版: sq が SQ_33 に来るように正規化
+  constexpr Square BASE = SQ_33;
 
-    // PEXTで24近傍の状態を回収。
-    return (Directions)PEXT64(t, 0b11111000011111000011011000011111000011111);
-  }
+  const uint64_t t = (sq <= BASE) ? (b.p << int(BASE - sq))
+                                  : (b.p >> int(sq - BASE));
+
+  // SQ_33 周り24近傍 (5x5 - center) を、Effect24::DirectToDelta_ の順に詰めるマスク
+  // set bit 位置: 0,1,2,3,4,6,7,8,9,10,12,13,15,16,18,19,20,21,22,24,25,26,27,28
+  constexpr uint64_t MASK24 = 0x000000001F7DB7DFULL;
+
+  return (Directions)PEXT64(t, MASK24);
+}
 
   std::ostream& operator<<(std::ostream& os, Directions d) { return output_around_n(os, d, 5); }
 }
@@ -192,7 +204,7 @@ namespace LongEffect
     // 利きの数をそのまま表示。10以上あるところの利きの表示がおかしくなるので16進数表示にしておく。
     for (auto r : Rank())
     {
-      for (File f = FILE_9; f >= FILE_1; --f)
+      for (File f = FILE_6; f >= FILE_1; --f)
       {
         int e = uint8_t(board.e[f | r]);
         if (e < 16)
@@ -216,7 +228,7 @@ namespace LongEffect
   {
     for (auto r : Rank())
     {
-      for (File f = FILE_9; f >= FILE_1; --f)
+      for (File f = FILE_6; f >= FILE_1; --f)
       {
         auto e = board.le16[f | r];
         // 方角を表示。複数あるなら4個まで表示

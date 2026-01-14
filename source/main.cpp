@@ -14,27 +14,24 @@
 int main(int argc, char* argv[])
 {
 	// --- 全体的な初期化
-
-	CommandLine::init(argc,argv);
+	CommandLine::init(argc, argv);
 	USI::init(Options);
-	Bitboards::init();
-	Position::init();
+	Bitboards::init();   // ← 66対応Bitboardがここで初期化される
+	Position::init();    // ← 66対応Position
 	Search::init();
 
-	// エンジンオプションの"Threads"があるとは限らないので…。
-	size_t thread_num = Options.count("Threads") ? (size_t)Options["Threads"] : 1;
+	// Threads オプションが無い場合にも耐える
+	size_t thread_num = Options.count("Threads")
+		? std::max((size_t)Options["Threads"], size_t(1))
+		: size_t(1);
 	Threads.set(thread_num);
 
-	//Search::clear();
 	Eval::init();
 
-	// USIコマンドの応答部
-
+	// USIループ
 	USI::loop(argc, argv);
 
-	// 生成して、待機させていたスレッドの停止
-
+	// スレッド終了
 	Threads.set(0);
-
 	return 0;
 }

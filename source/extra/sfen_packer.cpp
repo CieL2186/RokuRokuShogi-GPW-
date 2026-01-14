@@ -95,16 +95,16 @@ private:
 //    飛     111111 + 2    11111 + 2
 //
 // すべての駒が盤上にあるとして、
-//     空 81 - 40駒 = 41升 = 41bit
-//     歩      4bit*18駒   = 72bit
-//     香      6bit* 4駒   = 24bit
-//     桂      6bit* 4駒   = 24bit
-//     銀      6bit* 4駒   = 24bit            
-//     金      6bit* 4駒   = 24bit
+//     空 36 - 24駒 = 12升 = 12bit
+//     歩      4bit*12駒   = 48bit
+//     香      6bit* 2駒   = 12bit
+//     桂      6bit* 2駒   = 12bit
+//     銀      6bit* 2駒   = 12bit            
+//     金      6bit* 2駒   = 12bit
 //     角      8bit* 2駒   = 16bit
 //     飛      8bit* 2駒   = 16bit
 //                          -------
-//                          241bit + 1bit(手番) + 7bit×2(王の位置先後) = 256bit
+//                          bit + 1bit(手番) + 7bit×2(王の位置先後) = 256bit
 //
 // 盤上の駒が手駒に移動すると盤上の駒が空になるので盤上のその升は1bitで表現でき、
 // 手駒は、盤上の駒より1bit少なく表現できるので結局、全体のbit数に変化はない。
@@ -143,7 +143,7 @@ struct SfenPacker
   {
 //    cout << pos;
 
-    memset(data, 0, 32 /* 256bit */);
+    memset(data, 0, 19 /* 256bit */);
     stream.set_data(data);
 
     // 手番
@@ -151,7 +151,7 @@ struct SfenPacker
 
     // 先手玉、後手玉の位置、それぞれ7bit
     for(auto c : COLOR)
-      stream.write_n_bit(pos.king_square(c), 7);
+      stream.write_n_bit(pos.king_square(c), 6);
 
     // 盤面の駒は王以外はそのまま書き出して良し！
     for (auto sq : SQ)
@@ -177,7 +177,7 @@ struct SfenPacker
     // 綺麗に書けた..気がする。
 
     // 全部で256bitのはず。(普通の盤面であれば)
-    ASSERT_LV3(stream.get_cursor() == 256);
+    ASSERT_LV3(stream.get_cursor() == 151);
   }
 
   // data[32]をsfen化して返す。
@@ -186,15 +186,15 @@ struct SfenPacker
     stream.set_data(data);
 
     // 盤上の81升
-    Piece board[81];
-    memset(board, 0, sizeof(Piece)*81);
+    Piece board[36];
+    memset(board, 0, sizeof(Piece)*36);
 
     // 手番
     Color turn = (Color)stream.read_one_bit();
     
     // まず玉の位置
     for (auto c : COLOR)
-      board[stream.read_n_bit(7)] = make_piece(c, KING);
+      board[stream.read_n_bit(6)] = make_piece(c, KING);
 
     // 盤上の駒
     for (auto sq : SQ)
@@ -207,14 +207,14 @@ struct SfenPacker
 
       //cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
-      ASSERT_LV3(stream.get_cursor() <= 256);
+      ASSERT_LV3(stream.get_cursor() <= 151);
     }
 
     // 手駒
     Hand hand[2] = { HAND_ZERO,HAND_ZERO };
-    while (stream.get_cursor() != 256)
+    while (stream.get_cursor() != 151)
     {
-      // 256になるまで手駒が格納されているはず
+      // 151になるまで手駒が格納されているはず
       auto pc = read_hand_piece_from_stream();
       add_hand(hand[(int)color_of(pc)], type_of(pc));
     }
@@ -372,12 +372,12 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 	if (mirror)
 	{
 		for (auto c : COLOR)
-			board[Mir((Square)stream.read_n_bit(7))] = make_piece(c, KING);
+			board[Mir((Square)stream.read_n_bit(6))] = make_piece(c, KING);
 	}
 	else
 	{
 		for (auto c : COLOR)
-			board[stream.read_n_bit(7)] = make_piece(c, KING);
+			board[stream.read_n_bit(6)] = make_piece(c, KING);
 	}
 
 	// 盤上の駒
@@ -417,7 +417,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
-		if (stream.get_cursor() > 256)
+		if (stream.get_cursor() > 151)
 			return Tools::Result(Tools::ResultCode::SomeError);
 		//ASSERT_LV3(stream.get_cursor() <= 256);
 	}
@@ -428,9 +428,9 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 	int i = 0;
 	Piece lastPc = NO_PIECE;
 
-	while (stream.get_cursor() < 256)
+	while (stream.get_cursor() < 151)
 	{
-		// 256になるまで手駒が格納されているはず
+		// 151になるまで手駒が格納されているはず
 		auto pc = packer.read_hand_piece_from_stream();
 		add_hand(hand[(int)color_of(pc)], type_of(pc));
 
@@ -449,7 +449,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 #endif
 	}
 
-	if (stream.get_cursor() != 256)
+	if (stream.get_cursor() != 151)
 	{
 		// こんな局面はおかしい。デバッグ用。
 		//cout << "Error : set_from_packed_sfen() , position = " << endl << *this << endl;
@@ -489,13 +489,13 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 }
 
 // 盤面と手駒、手番を与えて、そのsfenを返す。
-std::string Position::sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly_)
+std::string Position::sfen_from_rawdata(Piece board[36], Hand hands[2], Color turn, int gamePly_)
 {
   // 内部的な構造体にコピーして、sfen()を呼べば、変換過程がそこにしか依存していないならば
   // これで正常に変換されるのでは…。
   Position pos;
 
-  memcpy(pos.board, board, sizeof(Piece) * 81);
+  memcpy(pos.board, board, sizeof(Piece) * 36);
   memcpy(pos.hand, hands, sizeof(Hand) * 2);
   pos.sideToMove = turn;
   pos.gamePly = gamePly_;
