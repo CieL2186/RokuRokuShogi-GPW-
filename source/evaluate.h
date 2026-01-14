@@ -72,13 +72,13 @@ namespace Eval {
 		KnightValue = 405,
 		SilverValue = 495,
 		GoldValue = 540,
-		BishopValue = 990,
+		BishopValue = 855,
 		RookValue = 990,
 		ProPawnValue = 540,
 		ProLanceValue = 540,
 		ProKnightValue = 540,
 		ProSilverValue = 540,
-		HorseValue = 1395,
+		HorseValue = 945,
 		DragonValue = 1395,
 		KingValue = 15000,
 	};
@@ -124,23 +124,28 @@ namespace Eval {
 		//  e_hand_lance = 後手の1枚目の手駒の香
 		// Aperyとは手駒に関してはこの部分の定数の意味が1だけ異なるので注意。
 
-		f_hand_pawn = BONA_PIECE_ZERO + 1,//0//0+1
-		e_hand_pawn = 20,//f_hand_pawn + 19,//19+1
-		f_hand_lance = 39,//e_hand_pawn + 19,//38+1
-		e_hand_lance = 44,//f_hand_lance + 5,//43+1
-		f_hand_knight = 49,//e_hand_lance + 5,//48+1
-		e_hand_knight = 54,//f_hand_knight + 5,//53+1
-		f_hand_silver = 59,//e_hand_knight + 5,//58+1
-		e_hand_silver = 64,//f_hand_silver + 5,//63+1
-		f_hand_gold = 69,//e_hand_silver + 5,//68+1
-		e_hand_gold = 74,//f_hand_gold + 5,//73+1
-		f_hand_bishop = 79,//e_hand_gold + 5,//78+1
-		e_hand_bishop = 82,//f_hand_bishop + 3,//81+1
-		f_hand_rook = 85,//e_hand_bishop + 3,//84+1
-		e_hand_rook = 88,//f_hand_rook + 3,//87+1
-		fe_hand_end = 90,//e_hand_king + 3,//96+1
+		// --- 手駒（66専用）
+		f_hand_pawn   = BONA_PIECE_ZERO + 1, // 1..13
+		e_hand_pawn   = f_hand_pawn + 13,
 
+		f_hand_lance  = e_hand_pawn + 13,
+		e_hand_lance  = f_hand_lance + 2,
 
+		f_hand_knight = e_hand_lance + 2,
+		e_hand_knight = f_hand_knight + 2,
+
+		f_hand_silver = e_hand_knight + 2,
+		e_hand_silver = f_hand_silver + 2,
+
+		f_hand_gold   = e_hand_silver + 2,
+		e_hand_gold   = f_hand_gold + 2,
+
+		f_hand_bishop = e_hand_gold + 2,
+		e_hand_bishop = f_hand_bishop + 2,
+
+		f_hand_rook   = e_hand_bishop + 2,
+		e_hand_rook   = f_hand_rook + 2,
+		fe_hand_end   = e_hand_rook + 2,
 #else 
 		fe_hand_end = 0,
 #endif                     
@@ -151,38 +156,38 @@ namespace Eval {
 
 		// --- 盤上の駒
 		f_pawn = fe_hand_end,
-		e_pawn = f_pawn + 81,
-		f_lance = e_pawn + 81,
-		e_lance = f_lance + 81,
-		f_knight = e_lance + 81,
-		e_knight = f_knight + 81,
-		f_silver = e_knight + 81,
-		e_silver = f_silver + 81,
-		f_gold = e_silver + 81,
-		e_gold = f_gold + 81,
-		f_bishop = e_gold + 81,
-		e_bishop = f_bishop + 81,
-		f_horse = e_bishop + 81,
-		e_horse = f_horse + 81,
-		f_rook = e_horse + 81,
-		e_rook = f_rook + 81,
-		f_dragon = e_rook + 81,
-		e_dragon = f_dragon + 81,
-		fe_old_end = e_dragon + 81,
+		e_pawn = f_pawn + SQ_NB,
+		f_lance = e_pawn + SQ_NB,
+		e_lance = f_lance + SQ_NB,
+		f_knight = e_lance + SQ_NB,
+		e_knight = f_knight + SQ_NB,
+		f_silver = e_knight + SQ_NB,
+		e_silver = f_silver + SQ_NB,
+		f_gold = e_silver + SQ_NB,
+		e_gold = f_gold + SQ_NB,
+		f_bishop = e_gold + SQ_NB,
+		e_bishop = f_bishop + SQ_NB,
+		f_horse = e_bishop + SQ_NB,
+		e_horse = f_horse + SQ_NB,
+		f_rook = e_horse + SQ_NB,
+		e_rook = f_rook + SQ_NB,
+		f_dragon = e_rook + SQ_NB,
+		e_dragon = f_dragon + SQ_NB,
+		fe_old_end = e_dragon + SQ_NB,
 
 		// === 以下、拡張領域 ===
 
 		// 金と小駒の成り駒を区別する
 #if defined(DISTINGUISH_GOLDS)
 		f_pro_pawn = fe_old_end,
-		e_pro_pawn = f_pro_pawn + 81,
-		f_pro_lance = e_pro_pawn + 81,
-		e_pro_lance = f_pro_lance + 81,
-		f_pro_knight = e_pro_lance + 81,
-		e_pro_knight = f_pro_knight + 81,
-		f_pro_silver = e_pro_knight + 81,
-		e_pro_silver = f_pro_silver + 81,
-		fe_new_end = e_pro_silver + 81,
+		e_pro_pawn = f_pro_pawn + SQ_NB,
+		f_pro_lance = e_pro_pawn + SQ_NB,
+		e_pro_lance = f_pro_lance + SQ_NB,
+		f_pro_knight = e_pro_lance + SQ_NB,
+		e_pro_knight = f_pro_knight + SQ_NB,
+		f_pro_silver = e_pro_knight + SQ_NB,
+		e_pro_silver = f_pro_silver + SQ_NB,
+		fe_new_end = e_pro_silver + SQ_NB,
 #else
 		fe_new_end = fe_old_end,
 #endif
@@ -235,7 +240,7 @@ namespace Eval {
 	extern ExtBonaPiece kpp_board_index[PIECE_NB];
 
 	// KPPの手駒テーブル
-	extern ExtBonaPiece kpp_hand_index[COLOR_NB][KING];
+	extern ExtBonaPiece kpp_hand_index[COLOR_NB][PIECE_HAND_NB];
 
 	// 評価関数で用いる駒リスト。どの駒(PieceNumber)がどこにあるのか(BonaPiece)を保持している構造体
 	struct EvalList
@@ -264,9 +269,7 @@ namespace Eval {
 		}
 
 		// あるBonaPieceに対応するPieceNumberを返す。
-		PieceNumber piece_no_of_hand(BonaPiece bp) const {
-			return piece_no_list_hand[bp];
-		}
+		PieceNumber piece_no_of_hand(BonaPiece bp) const { return piece_no_list_hand[bp]; }
 		// 盤上のある升sqに対応するPieceNumberを返す。
 		PieceNumber piece_no_of_board(Square sq) const { return piece_no_list_board[sq]; }
 
@@ -320,12 +323,12 @@ namespace Eval {
 		// 駒リストの長さ
 		// 38固定
 	public:
-		int length() const { return PIECE_NUMBER_KING; }
+		int length() const { return PIECE_NUMBER_NB; }
 
 		// VPGATHERDDを使う都合、4の倍数でなければならない。
 		// また、KPPT型評価関数などは、39,40番目の要素がゼロであることを前提とした
 		// アクセスをしている箇所があるので注意すること。
-		static const int MAX_LENGTH = 40;
+		static const int MAX_LENGTH = ((PIECE_NUMBER_NB + 3) / 4) * 4;
 
 	private:
 

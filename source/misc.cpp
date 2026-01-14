@@ -1,5 +1,4 @@
-﻿
-// Windows環境下でのプロセッサグループの割当関係
+﻿// Windows環境下でのプロセッサグループの割当関係
 #ifdef _WIN32
 #if _WIN32_WINNT < 0x0601
 #undef  _WIN32_WINNT
@@ -48,6 +47,10 @@ extern "C" {
 #include "misc.h"
 #include "thread.h"
 #include "usi.h"
+
+#ifndef ENGINE_NAME
+#define ENGINE_NAME "RokuRokuShogi"
+#endif
 
 using namespace std;
 
@@ -168,7 +171,7 @@ const string engine_info() {
 #if defined(EVAL_LEARN)
 			<< " EVAL_LEARN"
 #endif
-
+<< "\n" << compiler_info()
 			<< endl
 #if !defined(YANEURAOU_ENGINE_DEEP)
 			<< "id author by yaneurao" << std::endl;

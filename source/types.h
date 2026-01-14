@@ -528,10 +528,20 @@ static std::ostream& operator<<(std::ostream& os, PieceType pc) { return os << (
 // Positionクラスで用いる、駒リスト(どの駒がどこにあるのか)を管理するときの番号。
 enum PieceNumber : u8
 {
-  PIECE_NUMBER_PAWN = 0, PIECE_NUMBER_LANCE = 18, PIECE_NUMBER_KNIGHT = 22, PIECE_NUMBER_SILVER = 26,
-  PIECE_NUMBER_GOLD = 30, PIECE_NUMBER_BISHOP = 34, PIECE_NUMBER_ROOK = 36, PIECE_NUMBER_KING = 38,
-  PIECE_NUMBER_BKING = 38, PIECE_NUMBER_WKING = 39, // 先手、後手の玉の番号が必要な場合はこっちを用いる
-  PIECE_NUMBER_ZERO = 0, PIECE_NUMBER_NB = 40,
+  PIECE_NUMBER_PAWN   = 0,   // 0..11
+  PIECE_NUMBER_LANCE  = 12,  // 12..13
+  PIECE_NUMBER_KNIGHT = 14,  // 14..15
+  PIECE_NUMBER_SILVER = 16,  // 16..17
+  PIECE_NUMBER_GOLD   = 18,  // 18..19
+  PIECE_NUMBER_BISHOP = 20,  // 20..21
+  PIECE_NUMBER_ROOK   = 22,  // 22..23
+  PIECE_NUMBER_KING   = 24,  // 24..25
+
+  PIECE_NUMBER_BKING  = 24,
+  PIECE_NUMBER_WKING  = 25,
+
+  PIECE_NUMBER_ZERO   = 0,
+  PIECE_NUMBER_NB     = 26,
 };
 
 // PieceNumberの整合性の検査。assert用。
